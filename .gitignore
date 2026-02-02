@@ -1,0 +1,42 @@
+# --- ROOT / HIPO / LUND big data ---
+*.root
+*.hipo
+*.lund
+*.hipo.gz
+*.root.gz
+
+# --- common outputs ---
+Output*/
+output*/
+outputs*/
+analysis_out*/
+plots*/
+figures*/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# --- build / compiled ---
+build*/
+cmake-build*/
+*.o
+*.so
+*.dylib
+*.a
+*.exe
+
+# --- python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- notebooks ---
+.ipynb_checkpoints/
+
+# --- OS / editor ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
