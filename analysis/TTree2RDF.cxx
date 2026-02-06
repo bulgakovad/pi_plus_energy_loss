@@ -23,6 +23,8 @@
 #include <chrono>
 #include "TSystem.h"
 
+
+
 int isData = 0;  // 1 for real data, 0 for MC
 bool isBigStatistics = false;
 bool toFarm = false;
@@ -124,18 +126,31 @@ int main() {
     //    std::cout << col << std::endl; 
     //}
 
-    //Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
-    //Phi_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
-    //Phi_VS_Theta_FD_CD(init_rdf, OUTPUT_FOLDER);
-    //delta_P_VS_P_rec_FD_CD(init_rdf, OUTPUT_FOLDER);
-    //plot_delta_P_VS_P_rec_FD(init_rdf, OUTPUT_FOLDER);
-    //plot_delta_P(init_rdf, OUTPUT_FOLDER);
-    //plot_momenta_components(init_rdf, OUTPUT_FOLDER);
+    Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
+    Phi_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
+    Phi_VS_Theta_FD_CD(init_rdf, OUTPUT_FOLDER);
+    delta_P_VS_P_rec_FD_CD(init_rdf, OUTPUT_FOLDER);
+    plot_delta_P_VS_P_rec_FD(init_rdf, OUTPUT_FOLDER);
+    plot_delta_P(init_rdf, OUTPUT_FOLDER);
+    plot_momenta_components(init_rdf, OUTPUT_FOLDER);
 
-    std::vector<double> theta_bins = {0,5,10,15,20,25,30,35,40,45};
-    std::vector<double> momentum_bins = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
-    //delta_P_VS_P_rec_FD_unified_1D(init_rdf, OUTPUT_FOLDER, theta_bins, momentum_bins, true);
-    delta_P_VS_P_rec_FD_unified_1D(init_rdf, OUTPUT_FOLDER, theta_bins, momentum_bins, false);
+
+    
+    ThetaToPBins cfg;
+
+
+    cfg[{5.0, 10.0}] = {4.0, 4.5, 5.0};
+    cfg[{10.0, 15.0}] = {1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
+    cfg[{15.0, 20.0}] = {0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
+    cfg[{20.0, 25.0}] = {0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
+    cfg[{25.0, 30.0}] = {0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
+    cfg[{30.0, 35.0}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
+    cfg[{35.0, 40.0}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
+
+
+
+    delta_P_VS_P_rec_FD_unified_1D(init_rdf, OUTPUT_FOLDER, cfg, false);
+
 
 
     auto end = std::chrono::high_resolution_clock::now(); // END

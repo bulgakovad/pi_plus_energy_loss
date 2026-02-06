@@ -15,8 +15,12 @@
 #include <TText.h>
 #include <TPaveText.h>  // add at top of file if not already included
 #include <TLatex.h>
-
+#include <map>
+#include <utility>
 #include "TLorentzVector.h"
+
+using ThetaRange = std::pair<double,double>;
+using ThetaToPBins = std::map<ThetaRange, std::vector<double>>;
 
 void plot_delta_P(ROOT::RDF::RNode rdf,const std::string& output_folder) {
     TCanvas canvas("c1", "delta_P", 800, 600);
@@ -206,32 +210,28 @@ void Phi_VS_Theta_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder) 
 // Now: loop over theta bins (like momentum bins) and do this per-theta-bin for pi+
 void delta_P_VS_P_rec_FD_unified_1D(ROOT::RDF::RNode rdf,
                                    const std::string& output_folder,
-                                   const std::vector<double>& theta_bins,
-                                   const std::vector<double>& momentum_bins,
-                                   const bool normalized) {
+                                   const ThetaToPBins& theta_to_momentum_bins,
+                                   const bool normalized){
+
   std::string dp_Or_dpp = normalized ? "dp_norm" : "delta_p";
 
 
   
-  const size_t num_p_bins = momentum_bins.size() - 1;
 
-  // Safety
-  if (theta_bins.size() < 2) {
-    std::cerr << "ERROR: theta_bins must have at least 2 edges.\n";
-    return;
-  }
 
-  // Loop over theta bins
-  for (size_t tbin = 0; tbin + 1 < theta_bins.size(); ++tbin) {
-    const double th_lo = theta_bins[tbin];
-    const double th_hi = theta_bins[tbin + 1];
-    const double th_ctr = 0.5 * (th_lo + th_hi);
+// Loop over theta bins provided by the dictionary
+for (const auto& kv : theta_to_momentum_bins) {
+    const double th_lo = kv.first.first;
+    const double th_hi = kv.first.second;
+    const auto& momentum_bins = kv.second;
 
-    // Tag for unique names / files
+    if (momentum_bins.size() < 2) continue; // need at least 2 edges
+    const size_t num_p_bins = momentum_bins.size() - 1;
+
     TString thetaTag = Form("theta_%g_%g", th_lo, th_hi);
 
-    ROOT::RDF::RNode rdf_filtered =
-        rdf.Filter(Form("detector == \"FD\" && Theta_rec >= %f && Theta_rec < %f", th_lo, th_hi));
+    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"FD\" && Theta_rec >= %f && Theta_rec < %f", th_lo, th_hi));
+
 
     // 2D histogram over ALL sectors: X = p_rec, Y = Δp (or Δp/p)
     TString h2name = Form("h2_unified_%s_%s", thetaTag.Data(), dp_Or_dpp.c_str());
