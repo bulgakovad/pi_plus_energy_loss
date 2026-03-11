@@ -65,7 +65,7 @@ def generate_lund_file(file_index, output_folder, num_events_per_file, Ebeam):
 
         # ---- pi+ (uncorrelated toy hadron) ----
         p_pi  = ROOT.gRandom.Uniform(0.1, max(0.101, Ebeam - 1e-3))
-        th_pi = ROOT.gRandom.Uniform(3.0, 45.0) * DEG2RAD
+        th_pi = ROOT.gRandom.Uniform(5.0, 60.0) * DEG2RAD
         ph_pi = ROOT.gRandom.Uniform(-180.0, 180.0) * DEG2RAD
         px_pi = p_pi * np.sin(th_pi) * np.cos(ph_pi)
         py_pi = p_pi * np.sin(th_pi) * np.sin(ph_pi)
@@ -93,11 +93,11 @@ def generate_lund_files(output_folder, num_files, num_events_per_file, Ebeam):
     print(f"Generated {num_files} LUND files with {num_events_per_file} events each at {output_folder}")
 
 if __name__ == "__main__":
-    outdir = "/lustre24/expphy/volatile/clas12/bulgakov/lund_files/piplus_electron_lund_multithread_2"
-
+    outdir = "/lustre24/expphy/volatile/clas12/bulgakov/lund_files/piplus_electron_lund_multithread_big_2"
+    
     # RGK common beam energies: 6.535 or 7.546 (pick what you need)
     Ebeam = 6.535
 
-    num_files = 1000
+    num_files = 10000
     num_events_per_file = 5000
     generate_lund_files(outdir, num_files, num_events_per_file, Ebeam)

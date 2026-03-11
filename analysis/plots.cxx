@@ -1,5 +1,6 @@
 #include "ROOT/RDataFrame.hxx"
 #include "TH3D.h"
+#include "TH2D.h"
 #include "TH1.h"
 #include "TF1.h"
 #include "TLine.h"
@@ -89,7 +90,7 @@ void delta_P_VS_P_rec_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_fold
     std::cout << "Saved 2D histogram as delta_P_VS_P_rec_FD_CD.pdf" << std::endl;
 }
 
-void plot_delta_P_VS_P_rec_FD_Theta_below_above(ROOT::RDF::RNode rdf, const std::string& output_folder){
+void plot_delta_P_VS_P_rec_FD_Theta_below_above(ROOT::RDF::RNode rdf, const std::string& output_folder) {
     auto rdf_above = rdf.Filter("(Theta_rec > 40) && detector == \"FD\" ");
     auto rdf_below = rdf.Filter("(Theta_rec < 25) && detector == \"FD\" ");
     TCanvas canvas("c1", "delta_P", 800, 600);
@@ -110,38 +111,68 @@ void plot_delta_P_VS_P_rec_FD_Theta_below_above(ROOT::RDF::RNode rdf, const std:
     std::cout << "Saved 1D histogram as delta_P_VS_P_rec_FD_Theta_high_low.pdf" << std::endl;
 }
 
-void Theta_VS_momentum_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder) {
+void Theta_VS_momentum_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder,  bool logz = true) {
     TCanvas canvas("c8", "Theta VS momentum FD CD", 800, 600);
     canvas.Divide(2,2);
     canvas.cd(1);
+    rdf = rdf.Filter("pz_piplus_rec > 0");
     auto hist1 = rdf.Filter("detector == \"FD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_FD", "Theta_gen VS P_gen in FD; P_gen (GeV); Theta_gen (deg)", 100, 0, 6, 100, 0, 100),
+        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_FD", "Theta_gen VS P_gen in FD; P_gen (GeV); Theta_gen (deg)", 200, 0, 6.5, 200, 0, 70),
         "p_piplus_gen", "Theta_gen"
     );
+    if (logz) gPad->SetLogz();
     hist1->Draw("COLZ");
     canvas.cd(2);
     auto hist2 = rdf.Filter("detector == \"FD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_FD", "Theta_rec VS P_rec in FD;  P_rec (GeV); Theta_rec (deg);", 100, 0, 6, 100, 0, 100),
+        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_FD", "Theta_rec VS P_rec in FD;  P_rec (GeV); Theta_rec (deg);", 200, 0, 6.5, 200, 0, 150),
         "p_piplus_rec", "Theta_rec"
     );
+    if (logz) gPad->SetLogz();
     hist2->Draw("COLZ");
     canvas.cd(3);
     auto hist3 = rdf.Filter("detector == \"CD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_CD", "Theta_gen VS P_gen in CD; P_gen (GeV); Theta_gen (deg); ", 100, 0, 6, 100, 0, 100),
+        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_CD", "Theta_gen VS P_gen in CD; P_gen (GeV); Theta_gen (deg); ", 200, 0, 6.5, 200, 0, 90),
         "p_piplus_gen", "Theta_gen"
     );
+    if (logz) gPad->SetLogz();
     hist3->Draw("COLZ");
     canvas.cd(4);
     auto hist4 = rdf.Filter("detector == \"CD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_CD", "Theta_rec VS P_rec in CD;  P_rec (GeV); Theta_rec (deg);",  100, 0, 6, 100, 0, 100),
+        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_CD", "Theta_rec VS P_rec in CD;  P_rec (GeV); Theta_rec (deg);",  200, 0, 6.5, 200, 0, 150),
         "p_piplus_rec", "Theta_rec"
     );
+    if (logz) gPad->SetLogz();
     hist4->Draw("COLZ");
 
-    canvas.SaveAs((output_folder + "Theta_VS_momentum_FD_CD.pdf").c_str());
-    std::cout << "Saved 2D histogram as Theta_VS_momentum_FD_CD.pdf" << std::endl;
+    canvas.SaveAs((output_folder + "Theta_VS_momentum_FD_CD_pz_cut.pdf").c_str());
+    std::cout << "Saved 2D histogram as Theta_VS_momentum_FD_CD_pz_cut.pdf" << std::endl;
 }
 
+void Theta_VS_momentum_FD_gen_cuts(ROOT::RDF::RNode rdf, const std::string& output_folder, double theta_gen_min, double theta_gen_max, double p_gen_min, double p_gen_max, bool logz = true) {
+    TCanvas canvas("c8", "Theta VS momentum FD", 800, 600);
+    rdf = rdf.Filter("pz_piplus_rec > 0");
+    canvas.Divide(1,2);
+    canvas.cd(1);
+    auto hist1 = rdf.Filter("detector == \"FD\"").Filter("Theta_gen >"+std::to_string(theta_gen_min)).Filter("Theta_gen < "+std::to_string(theta_gen_max)).Filter("p_piplus_gen > "+std::to_string(p_gen_min)).Filter("p_piplus_gen < "+std::to_string(p_gen_max))
+    .Histo2D(
+        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_FD", "Theta_gen VS P_gen in FD; P_gen (GeV); Theta_gen (deg)", 200, 0, 6.5, 200, theta_gen_min*0.9, theta_gen_max*1.1),
+        "p_piplus_gen", "Theta_gen"
+    );
+    if (logz) gPad->SetLogz();
+    hist1->Draw("COLZ");
+    canvas.cd(2);
+    auto hist2 = rdf.Filter("detector == \"FD\"").Filter("Theta_gen >"+std::to_string(theta_gen_min)).Filter("Theta_gen < "+std::to_string(theta_gen_max)).Filter("p_piplus_gen > "+std::to_string(p_gen_min)).Filter("p_piplus_gen < "+std::to_string(p_gen_max))
+    .Histo2D(
+        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_FD", "Theta_rec VS P_rec in FD;  P_rec (GeV); Theta_rec (deg);", 200, 0, 6.5, 200, 0, 150),
+        "p_piplus_rec", "Theta_rec"
+    );
+    if (logz) gPad->SetLogz();
+    hist2->Draw("COLZ");
+
+    canvas.SaveAs((output_folder + "Theta_VS_momentum_FD_theta_gen_" + std::to_string(theta_gen_min) + "-" + std::to_string(theta_gen_max) + "_p_gen_" + std::to_string(p_gen_min) + "-" + std::to_string(p_gen_max) + "_cut.pdf").c_str());
+    std::cout << "Saved 2D histogram as Theta_VS_momentum_FD_theta_gen_" + std::to_string(theta_gen_min) + "_" + std::to_string(theta_gen_max) + "_p_gen_" + std::to_string(p_gen_min) + "_" + std::to_string(p_gen_max) + "_cut.pdf" << std::endl;
+
+}
 void Phi_VS_momentum_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder) {
     TCanvas canvas("c8", "Phi VS momentum FD CD", 800, 600);
     canvas.Divide(2,2);
@@ -211,13 +242,10 @@ void Phi_VS_Theta_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder) 
 void delta_P_VS_P_rec_FD_unified_1D(ROOT::RDF::RNode rdf,
                                    const std::string& output_folder,
                                    const ThetaToPBins& theta_to_momentum_bins,
-                                   const bool normalized){
+                                   const bool normalized,
+                                   double phi_low = -180.0, double phi_high = 180.0){
 
   std::string dp_Or_dpp = normalized ? "dp_norm" : "delta_p";
-
-
-  
-
 
 // Loop over theta bins provided by the dictionary
 for (const auto& kv : theta_to_momentum_bins) {
@@ -230,23 +258,24 @@ for (const auto& kv : theta_to_momentum_bins) {
 
     TString thetaTag = Form("theta_%g_%g", th_lo, th_hi);
 
-    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"FD\" && Theta_rec >= %f && Theta_rec < %f", th_lo, th_hi));
+    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"FD\" && Phi_rec >= %f && Phi_rec <= %f  && Theta_rec >= %f && Theta_rec < %f", phi_low, phi_high, th_lo, th_hi));
 
 
     // 2D histogram over ALL sectors: X = p_rec, Y = Δp (or Δp/p)
     TString h2name = Form("h2_unified_%s_%s", thetaTag.Data(), dp_Or_dpp.c_str());
+    const int ny = 500; // default
     auto h2 = normalized
         ? rdf_filtered.Histo2D(
               ROOT::RDF::TH2DModel(h2name.Data(),
                                    Form("dp/p vs P_{rec} (FD, all sectors, %s);P_{rec} (GeV/c);dp/p",
                                         thetaTag.Data()),
-                                   100, 0.0, 6.0, 100, -0.05, 0.05),
+                                   100, 0.0, 6.0, ny, -0.5, 0.2),
               "p_piplus_rec", "dp_norm")
         : rdf_filtered.Histo2D(
               ROOT::RDF::TH2DModel(h2name.Data(),
                                    Form("delta P vs P_{rec} (FD, all sectors, %s);P_{rec} (GeV/c);delta P (GeV/c)",
                                         thetaTag.Data()),
-                                   100, 0.0, 6.0, 100, -0.05, 0.05),
+                                   100, 0.0, 6.0, ny, -0.5, 0.2),
               "p_piplus_rec", "delta_p");
 
     // Slices canvas (show all momentum-bin projections)
@@ -289,7 +318,11 @@ for (const auto& kv : theta_to_momentum_bins) {
       cSlices->cd((int)bin_idx + 1);
       hY->SetTitle(Form("Theta %.1f-%.1f deg, P_{rec} %.2f-%.2f GeV/c; %s; Counts",
                         th_lo, th_hi, p_low, p_high, dp_Or_dpp.c_str()));
-      hY->Draw();
+      double xmin = -0.15, xmax = 0.12;     // default
+      if (th_hi < 35 && p_high > 1.0) { xmin = -0.15; xmax = 0.15; }  // wide for high p
+      else if(p_high < 1.0) {xmin = -0.05; xmax = 0.02;}
+      else if (th_hi >= 35 && p_high > 2.8) {xmin = -0.3; xmax = 0.15;}
+
 
       // --- Adaptive, momentum-dependent two-step Gaussian fit ---
 
@@ -305,10 +338,17 @@ for (const auto& kv : theta_to_momentum_bins) {
           sigma68 = 3.0 * hY->GetBinWidth(1);
       }
 
-      if (hY->GetEntries() > 0) {
-        double binsPerSigma = sigma68 / hY->GetBinWidth(1);
-        if (binsPerSigma < 6.0 && hY->GetNbinsX() >= 80) hY->Rebin(2);
+      if (hY->GetEntries() > 2000) {  // only rebin when stats are high enough
+     double binsPerSigma = sigma68 / hY->GetBinWidth(1);
+     if (binsPerSigma < 6.0 && hY->GetNbinsX() >= 400) hY->Rebin(2);
       }
+
+
+      // NOW set the display range and draw
+        cSlices->cd((int)bin_idx + 1);
+        gPad->Clear();
+        hY->GetXaxis()->SetRangeUser(xmin, xmax);
+        hY->Draw();
 
       auto k_init_for_p = [](double p){
         double k = 1.3 + 0.25 * std::max(0.0, std::min((p - 1.5), 4.0));
@@ -339,18 +379,77 @@ for (const auto& kv : theta_to_momentum_bins) {
       fit_refined->SetLineWidth(1); 
       hY->Fit(fit_refined, "RQ");
 
-      double mean     = fit_refined->GetParameter(1);
-      double mean_err = 0.0001;
+      // --- Gaussian fit ONLY around zero to avoid left contamination ---
+    const double fitMin0 = -0.03;
+    const double fitMax0 =  0.005;
+
+    // clamp to histogram axis limits (just in case)
+    TAxis* ax = hY->GetXaxis();
+    double fitLo = std::max(fitMin0, ax->GetXmin());
+    double fitHi = std::min(fitMax0, ax->GetXmax());
+    if (fitLo >= fitHi) continue;
+
+    // find bin range inside [fitLo, fitHi]
+    const double eps_fit = 1e-12;
+    int ib_lo = ax->FindFixBin(fitLo + eps_fit);
+    int ib_hi = ax->FindFixBin(fitHi - eps_fit);
+    ib_lo = std::max(1, std::min(ax->GetNbins(), ib_lo));
+    ib_hi = std::max(1, std::min(ax->GetNbins(), ib_hi));
+    if (ib_lo > ib_hi) continue;
+
+    // find local maximum IN the fit window (so contamination outside doesn't matter)
+    int imax_local = ib_lo;
+    double maxc = -1.0;
+    for (int ib = ib_lo; ib <= ib_hi; ++ib) {
+      double c = hY->GetBinContent(ib);
+      if (c > maxc) { maxc = c; imax_local = ib; }
+    }
+    double mu0 = ax->GetBinCenter(imax_local);
+    if (!std::isfinite(mu0)) mu0 = 0.0;
+
+    // estimate sigma using weighted moments inside the window (robust-ish)
+    double sum = 0.0, sumx = 0.0, sumx2 = 0.0;
+    for (int ib = ib_lo; ib <= ib_hi; ++ib) {
+      double w = hY->GetBinContent(ib);
+      if (w <= 0) continue;
+      double x = ax->GetBinCenter(ib);
+      sum   += w;
+      sumx  += w * x;
+      sumx2 += w * x * x;
+    }
+    double mean_w = (sum > 0) ? (sumx / sum) : mu0;
+    double var_w  = (sum > 0) ? (sumx2 / sum - mean_w * mean_w) : 0.0;
+    double sigma0 = (var_w > 0 && std::isfinite(var_w)) ? std::sqrt(var_w) : (3.0 * ax->GetBinWidth(1));
+
+    // keep sigma sane
+    sigma0 = std::max(sigma0, 2.0 * ax->GetBinWidth(1));
+    sigma0 = std::min(sigma0, 0.05); // don't let it blow up
+
+    // fit only inside [-0.02, 0.02]
+    TF1* fit_zero = new TF1(Form("gaus_zero_unified_%s_%zu", thetaTag.Data(), bin_idx), "gaus", fitLo, fitHi);
+    fit_zero->SetParameters(std::max(1.0, maxc), mu0, sigma0);
+
+    // keep the fit from wandering off into garbage
+    fit_zero->SetParLimits(1, fitLo, fitHi);     // mean within window
+    fit_zero->SetParLimits(2, 1e-4, 0.05);       // sigma positive, reasonable
+
+    hY->Fit(fit_zero, "RQ");  // R=range, Q=quiet (still draws), no "0" so you see the curve
+
+    double mean     = fit_zero->GetParameter(1);
+    double mean_err = 0.0001;
+    //if (!(mean_err > 0) || !std::isfinite(mean_err)) mean_err = 0.0001;
 
       int ip = gAll->GetN();
       gAll->SetPoint(ip, p_center, mean);
       gAll->SetPointError(ip, 0.0, mean_err);
 
+      // Re-apply zoom just in case Fit/Update messes with it (cheap and safe)
+      hY->GetXaxis()->SetRangeUser(xmin, xmax);
       gPad->Update();
     }
 
     cSlices->SaveAs((output_folder + std::string(thetaTag.Data()) +
-                     Form("_UNIFIED_slices_%s.pdf", dp_Or_dpp.c_str())).c_str());
+                     Form("_UNIFIED_slices_%s_phi_%.0f-%.0f.pdf", dp_Or_dpp.c_str(), phi_low, phi_high)).c_str());
     delete cSlices;
 
     // Summary canvas (single panel)
@@ -484,7 +583,7 @@ for (const auto& kv : theta_to_momentum_bins) {
     zeroLine->Draw("SAME");
 
     cSummary->SaveAs((output_folder + std::string(thetaTag.Data()) +
-                      "_mean_" + dp_Or_dpp + "_vs_momentum_bin_UNIFIED.pdf").c_str());
+                      "_mean_" + dp_Or_dpp + "_vs_momentum_bin_UNIFIED_phi_" + std::to_string(int(phi_low)) + "-" + std::to_string(int(phi_high)) + ".pdf").c_str());
     delete cSummary;
 
     // Keep graph object around only if you need it later; otherwise delete
@@ -492,3 +591,261 @@ for (const auto& kv : theta_to_momentum_bins) {
   }
 }
 
+/////////////////////////////////////PHASE SPACE HISTOGRAMS/////////////////////////////////////
+// 1) For each momentum bin: 2D histogram Theta VS Phi (reconstructed)
+void Theta_VS_Phi_per_P_bin(ROOT::RDF::RNode rdf,
+                           const std::string& output_folder,
+                           const std::string& p_col     = "p_piplus_rec",
+                           const std::string& theta_col = "Theta_rec",
+                           const std::string& phi_col   = "Phi_rec",
+                           int nP = 9, double pMin = 0.5, double pMax = 5.0,
+                           int nPhi = 200, double phiMin = -180.0, double phiMax = 180.0,
+                           int nTheta = 200, double thMin = 0.0, double thMax = 50.0)
+{
+     rdf = rdf.Filter("detector==\"FD\"");
+
+    // X=phi, Y=theta, Z=p
+    auto h3 = rdf.Histo3D(
+        ROOT::RDF::TH3DModel("h3_phi_theta_p__ThetaVsPhiPerP",
+                             "Phase space;#phi [deg];#theta [deg];p [GeV]",
+                             nPhi, phiMin, phiMax,
+                             nTheta, thMin, thMax,
+                             nP, pMin, pMax),
+        phi_col, theta_col, p_col
+    );
+
+    TCanvas c("c_ThetaVsPhiPerP", "Theta vs Phi per P bin", 900, 700);
+
+    const std::string pdf = output_folder + "Theta_VS_Phi_per_P_bin.pdf";
+    c.SaveAs((pdf + "[").c_str());
+
+    TAxis* zax = h3->GetZaxis();
+    for (int iz = 1; iz <= zax->GetNbins(); ++iz) {
+        const double plo = zax->GetBinLowEdge(iz);
+        const double phi = zax->GetBinUpEdge(iz);
+
+        h3->GetZaxis()->SetRange(iz, iz);
+
+        TH1*  proj = h3->Project3D("yx"); // x=phi, y=theta
+        TH2D* h2   = (TH2D*)proj->Clone(Form("h2_ThetaVsPhi_pbin_%d", iz));
+        delete proj;
+
+        h2->SetDirectory(nullptr);
+        h2->SetTitle(Form("#theta vs #phi (p #in [%.3f, %.3f] GeV);#phi [deg];#theta [deg]", plo, phi));
+        h2->Draw("COLZ");
+        c.SaveAs(pdf.c_str());
+        delete h2;
+
+        h3->GetZaxis()->SetRange(0, 0);
+    }
+
+    c.SaveAs((pdf + "]").c_str());
+}
+
+
+// 2) For each theta bin: 2D histogram P VS Phi (reconstructed)
+void P_VS_Phi_per_Theta_bin(ROOT::RDF::RNode rdf,
+                           const std::string& output_folder,
+                           const std::string& p_col     = "p_piplus_rec",
+                           const std::string& theta_col = "Theta_rec",
+                           const std::string& phi_col   = "Phi_rec",
+                           int nTheta = 40, double thMin = 5, double thMax = 45,
+                           int nPhi = 200, double phiMin = -180.0, double phiMax = 180.0,
+                           int nP = 200, double pMin = 0.0, double pMax = 5.0)
+{
+     rdf = rdf.Filter("detector==\"FD\"");
+
+    // X=phi, Y=theta, Z=p
+    auto h3 = rdf.Histo3D(
+        ROOT::RDF::TH3DModel("h3_phi_theta_p__PvsPhiPerTheta",
+                             "Phase space;#phi [deg];#theta [deg];p [GeV]",
+                             nPhi, phiMin, phiMax,
+                             nTheta, thMin, thMax,
+                             nP, pMin, pMax),
+        phi_col, theta_col, p_col
+    );
+
+    TCanvas c("c_PvsPhiPerTheta", "P vs Phi per Theta bin", 900, 700);
+
+    const std::string pdf = output_folder + "P_VS_Phi_per_Theta_bin.pdf";
+    c.SaveAs((pdf + "[").c_str());
+
+    TAxis* yax = h3->GetYaxis();
+    for (int iy = 1; iy <= yax->GetNbins(); ++iy) {
+        const double tlo = yax->GetBinLowEdge(iy);
+        const double thi = yax->GetBinUpEdge(iy);
+
+        h3->GetYaxis()->SetRange(iy, iy);
+
+        TH1*  proj = h3->Project3D("zx"); 
+        TH2D* h2   = (TH2D*)proj->Clone(Form("h2_PvsPhi_thetabin_%d", iy));
+        delete proj;
+
+        h2->SetDirectory(nullptr);
+        h2->SetTitle(Form("p vs #phi (#theta #in [%.3f, %.3f] deg);#phi [deg];p [GeV]", tlo, thi));
+        h2->Draw("COLZ");
+        c.SaveAs(pdf.c_str());
+        delete h2;
+
+        h3->GetYaxis()->SetRange(0, 0);
+    }
+
+    c.SaveAs((pdf + "]").c_str());
+}
+
+
+// 3) For each phi bin: 2D histogram P VS Theta (reconstructed)
+void P_VS_Theta_per_Phi_bin(ROOT::RDF::RNode rdf,
+                           const std::string& output_folder,
+                           const std::string& p_col     = "p_piplus_rec",
+                           const std::string& theta_col = "Theta_rec",
+                           const std::string& phi_col   = "Phi_rec",
+                           
+                           int nPhi = 72, double phiMin = -180.0, double phiMax = 180.0,
+                           int nTheta = 200, double thMin = 0.0, double thMax = 60.0,
+                           int nP = 200, double pMin = 0.0, double pMax = 5.0)
+{
+    
+    rdf = rdf.Filter("detector==\"FD\"");
+
+    // X=phi, Y=theta, Z=p
+    auto h3 = rdf.Histo3D(
+        ROOT::RDF::TH3DModel("h3_phi_theta_p__PvsThetaPerPhi",
+                             "Phase space;#phi [deg];#theta [deg];p [GeV]",
+                             nPhi, phiMin, phiMax,
+                             nTheta, thMin, thMax,
+                             nP, pMin, pMax),
+        phi_col, theta_col, p_col
+    );
+
+    TCanvas c("c_PvsThetaPerPhi", "P vs Theta per Phi bin", 900, 700);
+
+    const std::string pdf = output_folder + "P_VS_Theta_per_Phi_bin.pdf";
+    c.SaveAs((pdf + "[").c_str());
+
+    TAxis* xax = h3->GetXaxis();
+    for (int ix = 1; ix <= xax->GetNbins(); ++ix) {
+        const double plo = xax->GetBinLowEdge(ix);
+        const double phi = xax->GetBinUpEdge(ix);
+
+        h3->GetXaxis()->SetRange(ix, ix);
+
+        TH1*  proj = h3->Project3D("yz"); // x=p, y = theta
+        TH2D* h2   = (TH2D*)proj->Clone(Form("h2_PvsTheta_phibin_%d", ix));
+        delete proj;
+
+        h2->SetDirectory(nullptr);
+        h2->SetTitle(Form("p vs #theta (#phi #in [%.3f, %.3f] deg);p [GeV];#theta [deg]", plo, phi));
+        h2->Draw("COLZ");
+        c.SaveAs(pdf.c_str());
+        delete h2;
+
+        h3->GetXaxis()->SetRange(0, 0);
+    }
+
+    c.SaveAs((pdf + "]").c_str());
+}
+
+//////////////////////////////////////////////////////////// Delta P sliced////////////////////////////////////////////////////////////////
+// 1) 2D delta p VS P_rec for different theta slices
+void deltaP_VS_Prec_per_Theta_bin(ROOT::RDF::RNode rdf,
+                                 const std::string& output_folder,
+                                 const std::string& p_col     = "p_piplus_rec",
+                                 const std::string& dp_col    = "delta_p",
+                                 const std::string& theta_col = "Theta_rec",
+                                 int nTheta = 40, double thMin = 5.0, double thMax = 45.0,
+                                 int nP = 200, double pMin = 0.0, double pMax = 5.0,
+                                 int nDP = 200, double dpMin = -0.1, double dpMax = 0.1)
+{
+    rdf = rdf.Filter("detector==\"FD\"");
+
+    // X=theta, Y=p_rec, Z=delta_p
+    auto h3 = rdf.Histo3D(
+        ROOT::RDF::TH3DModel("h3_theta_p_dp__dPvsP_perTheta",
+                             "Phase space;#theta [deg];p_{rec} [GeV];#Deltap [GeV]",
+                             nTheta, thMin, thMax,
+                             nP, pMin, pMax,
+                             nDP, dpMin, dpMax),
+        theta_col, p_col, dp_col
+    );
+
+    TCanvas c("c_dPvsP_perTheta", "delta p vs p_rec per theta bin", 900, 700);
+
+    const std::string pdf = output_folder + "deltaP_VS_Prec_per_Theta_bin.pdf";
+    c.SaveAs((pdf + "[").c_str());
+
+    TAxis* xax = h3->GetXaxis();
+    for (int ix = 1; ix <= xax->GetNbins(); ++ix) {
+        const double tlo = xax->GetBinLowEdge(ix);
+        const double thi = xax->GetBinUpEdge(ix);
+
+        h3->GetXaxis()->SetRange(ix, ix);
+
+        // Project to (p_rec, delta_p): y,z in TH3 -> "yz"
+        TH1*  proj = h3->Project3D("zy"); // x=p_rec, y=delta_p
+        TH2D* h2   = (TH2D*)proj->Clone(Form("h2_dPvsP_theta_%d", ix));
+        delete proj;
+
+        h2->SetDirectory(nullptr);
+        h2->SetTitle(Form("#Deltap vs p_{rec} (#theta #in [%.2f, %.2f] deg); p_{rec} [GeV];#Deltap [GeV];", tlo, thi));
+        h2->Draw("COLZ");
+        c.SaveAs(pdf.c_str());
+        delete h2;
+
+        h3->GetXaxis()->SetRange(0, 0);
+    }
+
+    c.SaveAs((pdf + "]").c_str());
+}
+
+
+// 2) 2D delta p VS P_rec for different phi slices
+void deltaP_VS_Prec_per_Phi_bin(ROOT::RDF::RNode rdf,
+                               const std::string& output_folder,
+                               const std::string& p_col   = "p_piplus_rec",
+                               const std::string& dp_col  = "delta_p",
+                               const std::string& phi_col = "Phi_rec",
+                               int nPhi = 36, double phiMin = -180.0, double phiMax = 180.0,
+                               int nP = 200, double pMin = 0.0, double pMax = 5.0,
+                               int nDP = 200, double dpMin = -0.1, double dpMax = 0.1)
+{
+    rdf = rdf.Filter("detector==\"FD\"");
+
+    // X=phi, Y=p_rec, Z=delta_p
+    auto h3 = rdf.Histo3D(
+        ROOT::RDF::TH3DModel("h3_phi_p_dp__dPvsP_perPhi",
+                             "Phase space;#phi [deg];p_{rec} [GeV];#Deltap [GeV]",
+                             nPhi, phiMin, phiMax,
+                             nP, pMin, pMax,
+                             nDP, dpMin, dpMax),
+        phi_col, p_col, dp_col
+    );
+
+    TCanvas c("c_dPvsP_perPhi", "delta p vs p_rec per phi bin", 900, 700);
+
+    const std::string pdf = output_folder + "deltaP_VS_Prec_per_Phi_bin.pdf";
+    c.SaveAs((pdf + "[").c_str());
+
+    TAxis* xax = h3->GetXaxis();
+    for (int ix = 1; ix <= xax->GetNbins(); ++ix) {
+        const double plo = xax->GetBinLowEdge(ix);
+        const double phi = xax->GetBinUpEdge(ix);
+
+        h3->GetXaxis()->SetRange(ix, ix);
+
+        // Project to (p_rec, delta_p): y,z -> "yz"
+        TH1*  proj = h3->Project3D("zy"); // x=p_rec, y=delta_p
+        TH2D* h2   = (TH2D*)proj->Clone(Form("h2_dPvsP_phi_%d", ix));
+        delete proj;
+
+        h2->SetDirectory(nullptr);
+        h2->SetTitle(Form("#Deltap vs p_{rec} (#phi #in [%.1f, %.1f] deg); p_{rec} [GeV];#Deltap [GeV];", plo, phi));
+        h2->Draw("COLZ");
+        c.SaveAs(pdf.c_str());
+        delete h2;
+
+        h3->GetXaxis()->SetRange(0, 0);
+    }
+
+    c.SaveAs((pdf + "]").c_str());
+}

@@ -26,21 +26,24 @@
 
 
 int isData = 0;  // 1 for real data, 0 for MC
-bool isBigStatistics = false;
+bool isBigStatistics = true;
 bool toFarm = false;
 
 std::string farm_out = (toFarm == true) ? "/farm_out/" : "/";
+std::string test_stat = (isBigStatistics == true) ? "" : "_TEST";
 
 
 // ROOT file
 
 //std::string root_file_path = "../data/clasdis_rga_fall18_inbendingBIG.root";
-std::string root_file_path = "../data/pi_plus_toy.root";
+
+std::string root_file_path = (isBigStatistics == true) ? "../data/pi_plus_toy_big_merged.root" : "../data/pi_plus_toy.root";
+
 
 //OUTPUT folder
 
 //const std::string OUTPUT_FOLDER = "analysis_out_clasdis_rga_fall18_inbending_BIG" + farm_out ;
-const std::string OUTPUT_FOLDER = "analysis_out_pi_plus_toy" + farm_out ;
+const std::string OUTPUT_FOLDER = "analysis_out_pi_plus_toy" + test_stat + farm_out ;
 
 
 
@@ -113,6 +116,7 @@ int main() {
                         .Define("E_piplus_gen", "sqrt(px_piplus_gen*px_piplus_gen + py_piplus_gen*py_piplus_gen + pz_piplus_gen*pz_piplus_gen + 0.13957039*0.13957039)") // const number is mass of pi+
                         .Define("delta_E", "E_piplus_rec - E_piplus_gen")
                         .Define("dp_norm", "delta_p / p_piplus_rec")
+                        .Define("sector_pi_plus", "sector_piplus") 
                         .Define("DC_fiducial_cut_electron", "detector == \"FD\" && edge1_electron > 5.0 && edge2_electron > 5.0 && edge3_electron > 10.0")
                         .Define("DC_fiducial_cut_piplus",  "detector == \"FD\" && edge1_piplus > 2.5 && edge2_piplus > 2.5 && edge3_piplus > 9.0");
 
@@ -121,36 +125,54 @@ int main() {
 
 
     // Print column names 
-    //std::cout << "Columns in RDataFrame:" << std::endl;
-    //for (const auto &col : init_rdf.GetColumnNames()) { 
-    //    std::cout << col << std::endl; 
-    //}
+   // std::cout << "Columns in RDataFrame:" << std::endl;
+   // for (const auto &col : init_rdf.GetColumnNames()) { 
+   //     std::cout << col << std::endl; 
+   // }
 
-    Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
-    Phi_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
-    Phi_VS_Theta_FD_CD(init_rdf, OUTPUT_FOLDER);
-    delta_P_VS_P_rec_FD_CD(init_rdf, OUTPUT_FOLDER);
-    plot_delta_P_VS_P_rec_FD(init_rdf, OUTPUT_FOLDER);
-    plot_delta_P(init_rdf, OUTPUT_FOLDER);
-    plot_momenta_components(init_rdf, OUTPUT_FOLDER);
+    //Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
+    //Phi_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
+    //Phi_VS_Theta_FD_CD(init_rdf, OUTPUT_FOLDER);
+    //delta_P_VS_P_rec_FD_CD(init_rdf, OUTPUT_FOLDER);
+    //plot_delta_P_VS_P_rec_FD(init_rdf, OUTPUT_FOLDER);
+    //plot_delta_P(init_rdf, OUTPUT_FOLDER);
+    //plot_momenta_components(init_rdf, OUTPUT_FOLDER);
+
+    //Theta_VS_momentum_FD_gen_cuts(init_rdf, OUTPUT_FOLDER, 0, 10);
+    //Theta_VS_momentum_FD_gen_cuts(init_rdf, OUTPUT_FOLDER, 50,55,4,5);
+    Theta_VS_momentum_FD_gen_cuts(init_rdf, OUTPUT_FOLDER, 0,30,4,5);
+
 
 
     
     ThetaToPBins cfg;
 
+    cfg[{5,10}]  = {3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6};
+    cfg[{10,15}] = {1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6};
+    cfg[{15,20}] = {0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,5.0, 5.2, 5.4, 5.6};    
+    cfg[{20,25}] = {0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,5.0, 5.2, 5.4, 5.6};
+    cfg[{25,30}] = {0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,5.0, 5.2, 5.4, 5.6};
+    cfg[{30,35}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6};
+    cfg[{35,36}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6};
+    cfg[{36,37}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6};
+    cfg[{37,38}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6};
+    cfg[{38,39}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6};
+    cfg[{39,40}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6};
+    cfg[{40,41}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6};
+    cfg[{41,42}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6}; 
+    cfg[{42,180}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6};
 
-    cfg[{5.0, 10.0}] = {4.0, 4.5, 5.0};
-    cfg[{10.0, 15.0}] = {1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
-    cfg[{15.0, 20.0}] = {0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
-    cfg[{20.0, 25.0}] = {0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
-    cfg[{25.0, 30.0}] = {0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
-    cfg[{30.0, 35.0}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
-    cfg[{35.0, 40.0}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
 
+    //cfg[{0,180}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
 
+    //delta_P_VS_P_rec_FD_unified_1D(init_rdf, OUTPUT_FOLDER, cfg, false);
 
-    delta_P_VS_P_rec_FD_unified_1D(init_rdf, OUTPUT_FOLDER, cfg, false);
-
+   
+    //Theta_VS_Phi_per_P_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","Theta_rec","Phi_rec");
+    //P_VS_Phi_per_Theta_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","Theta_rec","Phi_rec");
+    //P_VS_Theta_per_Phi_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","Theta_rec","Phi_rec");
+    //deltaP_VS_Prec_per_Phi_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","delta_p","Phi_rec");
+    //deltaP_VS_Prec_per_Theta_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","delta_p","Theta_rec");
 
 
     auto end = std::chrono::high_resolution_clock::now(); // END
