@@ -258,8 +258,10 @@ for (const auto& kv : theta_to_momentum_bins) {
 
     TString thetaTag = Form("theta_%g_%g", th_lo, th_hi);
 
-    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"FD\" && Phi_rec >= %f && Phi_rec <= %f  && Theta_rec >= %f && Theta_rec < %f", phi_low, phi_high, th_lo, th_hi));
-
+    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"FD\" && Phi_rec >= %f && Phi_rec <= %f  && Theta_rec >= %f && Theta_rec < %f", phi_low, phi_high, th_lo, th_hi))
+                                    .Filter("Vz_cut == true") // Apply Vz cut to select good events
+                                    .Filter("DC_fiducial_cut_piplus == true") // Apply DC fiducial cut for pi+
+                                    .Filter("Vxy_cut == true"); // Apply Vxy cut to select good events
 
     // 2D histogram over ALL sectors: X = p_rec, Y = Δp (or Δp/p)
     TString h2name = Form("h2_unified_%s_%s", thetaTag.Data(), dp_Or_dpp.c_str());
@@ -449,7 +451,7 @@ for (const auto& kv : theta_to_momentum_bins) {
     }
 
     cSlices->SaveAs((output_folder + std::string(thetaTag.Data()) +
-                     Form("_UNIFIED_slices_%s_phi_%.0f-%.0f.pdf", dp_Or_dpp.c_str(), phi_low, phi_high)).c_str());
+                     Form("_UNIFIED_slices_%s_phi_%.0f-%.0f_Vxyz_DC_cut.pdf", dp_Or_dpp.c_str(), phi_low, phi_high)).c_str());
     delete cSlices;
 
     // Summary canvas (single panel)
@@ -583,13 +585,40 @@ for (const auto& kv : theta_to_momentum_bins) {
     zeroLine->Draw("SAME");
 
     cSummary->SaveAs((output_folder + std::string(thetaTag.Data()) +
-                      "_mean_" + dp_Or_dpp + "_vs_momentum_bin_UNIFIED_phi_" + std::to_string(int(phi_low)) + "-" + std::to_string(int(phi_high)) + ".pdf").c_str());
+                      "_mean_" + dp_Or_dpp + "_vs_momentum_bin_UNIFIED_phi_" + std::to_string(int(phi_low)) + "-" + std::to_string(int(phi_high)) + "_Vxyz_DC_cut.pdf").c_str());
     delete cSummary;
 
     // Keep graph object around only if you need it later; otherwise delete
     delete gAll;
   }
 }
+
+void plot_X_vs_Y_piplus_FD(ROOT::RDF::RNode rdf,
+                           const std::string& output_folder,
+                           bool logz = true){
+auto rdf_with_cuts = rdf.Filter("detector == \"FD\"").Filter("DC_fiducial_cut_piplus == true");
+auto rdf_wo_cuts = rdf.Filter("detector == \"FD\"");
+
+TCanvas canvas("c_X_vs_Y_piplus_FD", "X vs Y for pi+ in FD", 900, 700);
+
+canvas.Divide(1,2);
+canvas.cd(1);
+auto hist1 = rdf_with_cuts.Histo2D(
+    ROOT::RDF::TH2DModel("X_vs_Y_piplus_FD_cuts", "X vs Y for pi+ in FD with DC fiducial cuts; X (cm); Y (cm)", 200, -200, 200, 200, -200, 200),
+    "x1_piplus", "y1_piplus"
+);
+if (logz) gPad->SetLogz();
+hist1->Draw("COLZ");
+canvas.cd(2);
+auto hist2 = rdf_wo_cuts.Histo2D(
+    ROOT::RDF::TH2DModel("X_vs_Y_piplus_FD_no_cuts", "X vs Y for pi+ in FD without DC fiducial cuts; X (cm); Y (cm)", 200, -200, 200, 200, -200, 200),
+    "x1_piplus", "y1_piplus"
+);
+if (logz) gPad->SetLogz();
+hist2->Draw("COLZ");
+
+canvas.SaveAs((output_folder + "X_vs_Y_piplus_FD_comparison.pdf").c_str());
+                           }
 
 /////////////////////////////////////PHASE SPACE HISTOGRAMS/////////////////////////////////////
 // 1) For each momentum bin: 2D histogram Theta VS Phi (reconstructed)

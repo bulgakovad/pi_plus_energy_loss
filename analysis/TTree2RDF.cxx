@@ -79,10 +79,13 @@ ROOT::RDataFrame convert_ttrees_to_rdataframe(const std::string &root_file_path)
 // Use ROOT::RDF::RNode instead of RDataFrame& to fix type mismatch
 
 int main() {
+
+    ROOT::EnableImplicitMT(); // Enable multi-threading
+
+
     auto start = std::chrono::high_resolution_clock::now(); // STRAT
 
     // Load ROOT file and convert TTrees to RDataFrame
-    ROOT::EnableImplicitMT(); // Enable multi-threading
     auto rdf = convert_ttrees_to_rdataframe(root_file_path);
     if (rdf.GetColumnNames().empty()) {
         std::cerr << "Error: Could not create RDataFrame." << std::endl;
@@ -118,17 +121,20 @@ int main() {
                         .Define("dp_norm", "delta_p / p_piplus_rec")
                         .Define("sector_pi_plus", "sector_piplus") 
                         .Define("DC_fiducial_cut_electron", "detector == \"FD\" && edge1_electron > 5.0 && edge2_electron > 5.0 && edge3_electron > 10.0")
-                        .Define("DC_fiducial_cut_piplus",  "detector == \"FD\" && edge1_piplus > 2.5 && edge2_piplus > 2.5 && edge3_piplus > 9.0");
+                        .Define("DC_fiducial_cut_piplus",  "detector == \"FD\" && edge1_piplus > 10 && edge2_piplus > 10 && edge3_piplus > 10.0")
+                        .Define("Vz_cut", "vz_piplus > -10 && vz_piplus < 2")
+                        .Define("Vxy_cut", "abs(vx_piplus) < 1.0 && abs(vy_piplus) < 1.0");
 
 
 
 
 
     // Print column names 
-   // std::cout << "Columns in RDataFrame:" << std::endl;
-   // for (const auto &col : init_rdf.GetColumnNames()) { 
-   //     std::cout << col << std::endl; 
-   // }
+   //std::cout << "Columns in RDataFrame:" << std::endl;
+   //for (const auto &col : init_rdf.GetColumnNames()) { 
+   //std::cout << col << std::endl; }
+   
+   //init_rdf.Display("edge1_piplus",20)->Print();
 
     //Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
     //Phi_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
@@ -140,7 +146,7 @@ int main() {
 
     //Theta_VS_momentum_FD_gen_cuts(init_rdf, OUTPUT_FOLDER, 0, 10);
     //Theta_VS_momentum_FD_gen_cuts(init_rdf, OUTPUT_FOLDER, 50,55,4,5);
-    Theta_VS_momentum_FD_gen_cuts(init_rdf, OUTPUT_FOLDER, 0,30,4,5);
+    //Theta_VS_momentum_FD_gen_cuts(init_rdf, OUTPUT_FOLDER, 0,30,4,5);
 
 
 
@@ -165,7 +171,7 @@ int main() {
 
     //cfg[{0,180}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
 
-    //delta_P_VS_P_rec_FD_unified_1D(init_rdf, OUTPUT_FOLDER, cfg, false);
+    delta_P_VS_P_rec_FD_unified_1D(init_rdf, OUTPUT_FOLDER, cfg, false);
 
    
     //Theta_VS_Phi_per_P_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","Theta_rec","Phi_rec");
@@ -174,6 +180,7 @@ int main() {
     //deltaP_VS_Prec_per_Phi_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","delta_p","Phi_rec");
     //deltaP_VS_Prec_per_Theta_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","delta_p","Theta_rec");
 
+    //plot_X_vs_Y_piplus_FD(init_rdf, OUTPUT_FOLDER);
 
     auto end = std::chrono::high_resolution_clock::now(); // END
 
