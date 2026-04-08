@@ -183,7 +183,7 @@ def draw_with_text(hist, outname, text_x=0.2, text_y=0.85):
     Draws a histogram and stamps N = total processed events.
     Uses COLZ for TH2; default draw for TH1.
     """
-    outfolder = "output_plots"
+    outfolder = "output_plots_triangle_region"
     os.makedirs(outfolder, exist_ok=True)
     outname = os.path.join(outfolder, outname)
     

@@ -70,20 +70,27 @@ void plot_delta_P_VS_P_rec_FD(ROOT::RDF::RNode rdf, const std::string& output_fo
     std::cout << "Saved 2D histogram as delta_P_VS_P_rec_FD.pdf" << std::endl;
 }
 
-void delta_P_VS_P_rec_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder) {
+void delta_P_VS_P_rec_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder, bool no_low_bin_cont = true) {
+    rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true");
     TCanvas canvas("c", "delta_P_VS_P_rec_FD_CD", 800, 600);
     canvas.Divide(1,2);
     canvas.cd(1);
     auto hist2D_1 = rdf.Filter("detector == \"FD\"").Histo2D(
-        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_FD", "delta P vs P_rec in FD;  P_rec (GeV); delta P (GeV)", 200, 0, 6, 200, -0.1, 0.1),
+        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_FD", "delta P vs P_rec in FD;  P_rec (GeV); delta P (GeV)", 200, 0, 10, 200, -0.1, 0.1),
         "p_piplus_rec", "delta_p"
     );
+    if (no_low_bin_cont) {
+        hist2D_1->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
+    }
     hist2D_1->Draw("COLZ");
     canvas.cd(2);
     auto hist2D_2 = rdf.Filter("detector == \"CD\"").Histo2D(
-        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_CD", "delta P vs P_rec in CD;  P_rec (GeV); delta P (GeV)", 200, 0, 2.5, 200, -0.1, 0.1),
+        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_CD", "delta P vs P_rec in CD;  P_rec (GeV); delta P (GeV)", 200, 0, 8, 200, -0.1, 0.1),
         "p_piplus_rec", "delta_p"
     );
+    if (no_low_bin_cont) {
+        hist2D_2->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
+    }
     hist2D_2->Draw("COLZ");
 
     canvas.SaveAs((output_folder + "delta_P_VS_P_rec_FD_CD.pdf").c_str());
@@ -111,41 +118,53 @@ void plot_delta_P_VS_P_rec_FD_Theta_below_above(ROOT::RDF::RNode rdf, const std:
     std::cout << "Saved 1D histogram as delta_P_VS_P_rec_FD_Theta_high_low.pdf" << std::endl;
 }
 
-void Theta_VS_momentum_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder,  bool logz = true) {
+void Theta_VS_momentum_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder,  bool logz = true, bool no_low_bin_cont = true) {
     TCanvas canvas("c8", "Theta VS momentum FD CD", 800, 600);
     canvas.Divide(2,2);
     canvas.cd(1);
-    rdf = rdf.Filter("pz_piplus_rec > 0");
+    rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true");
     auto hist1 = rdf.Filter("detector == \"FD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_FD", "Theta_gen VS P_gen in FD; P_gen (GeV); Theta_gen (deg)", 200, 0, 6.5, 200, 0, 70),
+        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_FD", "Theta_gen VS P_gen in FD; P_gen (GeV); Theta_gen (deg)", 200, 0, 10, 200, 0, 140),
         "p_piplus_gen", "Theta_gen"
     );
     if (logz) gPad->SetLogz();
+    if (no_low_bin_cont) {
+        hist1->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
+    }
     hist1->Draw("COLZ");
     canvas.cd(2);
     auto hist2 = rdf.Filter("detector == \"FD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_FD", "Theta_rec VS P_rec in FD;  P_rec (GeV); Theta_rec (deg);", 200, 0, 6.5, 200, 0, 150),
+        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_FD", "Theta_rec VS P_rec in FD;  P_rec (GeV); Theta_rec (deg);", 200, 0, 10, 200, 0, 140),
         "p_piplus_rec", "Theta_rec"
     );
     if (logz) gPad->SetLogz();
+    if (no_low_bin_cont) {
+        hist2->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
+    }
     hist2->Draw("COLZ");
     canvas.cd(3);
     auto hist3 = rdf.Filter("detector == \"CD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_CD", "Theta_gen VS P_gen in CD; P_gen (GeV); Theta_gen (deg); ", 200, 0, 6.5, 200, 0, 90),
+        ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_CD", "Theta_gen VS P_gen in CD; P_gen (GeV); Theta_gen (deg); ", 200, 0, 10, 200, 0, 180),
         "p_piplus_gen", "Theta_gen"
     );
     if (logz) gPad->SetLogz();
+    if (no_low_bin_cont) {
+        hist3->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
+    }
     hist3->Draw("COLZ");
     canvas.cd(4);
     auto hist4 = rdf.Filter("detector == \"CD\"").Histo2D(
-        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_CD", "Theta_rec VS P_rec in CD;  P_rec (GeV); Theta_rec (deg);",  200, 0, 6.5, 200, 0, 150),
+        ROOT::RDF::TH2DModel("Theta_rec_VS_P_rec_CD", "Theta_rec VS P_rec in CD;  P_rec (GeV); Theta_rec (deg);",  200, 0, 10, 200, 0, 180),
         "p_piplus_rec", "Theta_rec"
     );
     if (logz) gPad->SetLogz();
+    if (no_low_bin_cont) {
+        hist4->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
+    }
     hist4->Draw("COLZ");
 
-    canvas.SaveAs((output_folder + "Theta_VS_momentum_FD_CD_pz_cut.pdf").c_str());
-    std::cout << "Saved 2D histogram as Theta_VS_momentum_FD_CD_pz_cut.pdf" << std::endl;
+    canvas.SaveAs((output_folder + "Theta_VS_momentum_FD_CD_Vz_Vxy_cut_setmin5.pdf").c_str());
+    std::cout << "Saved 2D histogram as Theta_VS_momentum_FD_CD.pdf" << std::endl;
 }
 
 void Theta_VS_momentum_FD_gen_cuts(ROOT::RDF::RNode rdf, const std::string& output_folder, double theta_gen_min, double theta_gen_max, double p_gen_min, double p_gen_max, bool logz = true) {
@@ -239,10 +258,11 @@ void Phi_VS_Theta_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder) 
 
 // Unite all FD sectors: build one graph over momentum bins and fit a single curve
 // Now: loop over theta bins (like momentum bins) and do this per-theta-bin for pi+
-void delta_P_VS_P_rec_FD_unified_1D(ROOT::RDF::RNode rdf,
+void delta_P_VS_P_rec_unified_1D(ROOT::RDF::RNode rdf,
                                    const std::string& output_folder,
                                    const ThetaToPBins& theta_to_momentum_bins,
                                    const bool normalized,
+                                   const std::string detector,
                                    double phi_low = -180.0, double phi_high = 180.0){
 
   std::string dp_Or_dpp = normalized ? "dp_norm" : "delta_p";
@@ -258,10 +278,14 @@ for (const auto& kv : theta_to_momentum_bins) {
 
     TString thetaTag = Form("theta_%g_%g", th_lo, th_hi);
 
-    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"FD\" && Phi_rec >= %f && Phi_rec <= %f  && Theta_rec >= %f && Theta_rec < %f", phi_low, phi_high, th_lo, th_hi))
+    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"%s\" && Phi_rec >= %f && Phi_rec <= %f  && Theta_rec >= %f && Theta_rec < %f", detector.c_str(), phi_low, phi_high, th_lo, th_hi))
                                     .Filter("Vz_cut == true") // Apply Vz cut to select good events
-                                    .Filter("DC_fiducial_cut_piplus == true") // Apply DC fiducial cut for pi+
+                                    //.Filter("DC_fiducial_cut_piplus == true") // Apply DC fiducial cut for pi+
                                     .Filter("Vxy_cut == true"); // Apply Vxy cut to select good events
+
+    std::cout<<"Detector = "<<detector.c_str()<<std::endl;
+
+
 
     // 2D histogram over ALL sectors: X = p_rec, Y = Δp (or Δp/p)
     TString h2name = Form("h2_unified_%s_%s", thetaTag.Data(), dp_Or_dpp.c_str());
@@ -269,22 +293,22 @@ for (const auto& kv : theta_to_momentum_bins) {
     auto h2 = normalized
         ? rdf_filtered.Histo2D(
               ROOT::RDF::TH2DModel(h2name.Data(),
-                                   Form("dp/p vs P_{rec} (FD, all sectors, %s);P_{rec} (GeV/c);dp/p",
+                                   Form("dp/p vs P_{rec} ( all sectors, %s);P_{rec} (GeV/c);dp/p",
                                         thetaTag.Data()),
-                                   100, 0.0, 6.0, ny, -0.5, 0.2),
+                                   100, 0.0, 9.0, ny, -0.5, 0.3),
               "p_piplus_rec", "dp_norm")
         : rdf_filtered.Histo2D(
               ROOT::RDF::TH2DModel(h2name.Data(),
-                                   Form("delta P vs P_{rec} (FD, all sectors, %s);P_{rec} (GeV/c);delta P (GeV/c)",
+                                   Form("delta P vs P_{rec} ( all sectors, %s);P_{rec} (GeV/c);delta P (GeV/c)",
                                         thetaTag.Data()),
-                                   100, 0.0, 6.0, ny, -0.5, 0.2),
+                                   100, 0.0, 9.0, ny, -0.5, 0.3),
               "p_piplus_rec", "delta_p");
 
     // Slices canvas (show all momentum-bin projections)
-    const int nCols = 6;
-    const int nRows = 6;
+    const int nCols = 7;
+    const int nRows = 7;
     TCanvas* cSlices = new TCanvas(Form("unified_%s_slices", thetaTag.Data()),
-                                   Form("Unified %s slices (FD, all sectors, %s)",
+                                   Form("Unified %s slices (all sectors, %s)",
                                         dp_Or_dpp.c_str(), thetaTag.Data()),
                                    1400, 900);
     cSlices->Divide(nCols, nRows);
@@ -292,7 +316,7 @@ for (const auto& kv : theta_to_momentum_bins) {
     // Graph of mean Δp (or Δp/p) vs momentum-bin center
     TGraphErrors* gAll = new TGraphErrors();
     gAll->SetName(Form("gUnified_%s_%s", thetaTag.Data(), dp_Or_dpp.c_str()));
-    gAll->SetTitle(Form("FD (all sectors): Mean %s vs Momentum Bin (%s);Momentum Bin Center (GeV/c);Mean %s",
+    gAll->SetTitle(Form(" (all sectors): Mean %s vs Momentum Bin (%s);Momentum Bin Center (GeV/c);Mean %s",
                         dp_Or_dpp.c_str(), thetaTag.Data(), dp_Or_dpp.c_str()));
 
     for (size_t bin_idx = 0; bin_idx < num_p_bins; ++bin_idx) {
@@ -320,126 +344,60 @@ for (const auto& kv : theta_to_momentum_bins) {
       cSlices->cd((int)bin_idx + 1);
       hY->SetTitle(Form("Theta %.1f-%.1f deg, P_{rec} %.2f-%.2f GeV/c; %s; Counts",
                         th_lo, th_hi, p_low, p_high, dp_Or_dpp.c_str()));
-      double xmin = -0.15, xmax = 0.12;     // default
-      if (th_hi < 35 && p_high > 1.0) { xmin = -0.15; xmax = 0.15; }  // wide for high p
-      else if(p_high < 1.0) {xmin = -0.05; xmax = 0.02;}
-      else if (th_hi >= 35 && p_high > 2.8) {xmin = -0.3; xmax = 0.15;}
+      double xmin = -0.15, xmax = 0.15;     // default
+      if (th_lo >= 25  && p_high >= 7.4) { xmin = -0.15; xmax = 0.30; }  
+      else if (th_lo >= 37  && p_high >= 1.6) { xmin = -0.3; xmax = 0.15; }
+      else if (th_lo >= 40 && p_high >=1.0) {xmin = -0.3; xmax = 0.15;}
+
+      
 
 
-      // --- Adaptive, momentum-dependent two-step Gaussian fit ---
+                // --- Two-step Gaussian fit ---
+      cSlices->cd((int)bin_idx + 1);
+      gPad->Clear();
+      hY->GetXaxis()->SetRangeUser(xmin, xmax);
+      hY->Draw();
 
-      int imax = hY->GetMaximumBin();
-      double mode = hY->GetBinCenter(imax);
+      // 1st fit: exploratory over the whole displayed region
+      TF1* fit_explore = new TF1(
+          Form("gaus_explore_unified_%s_%zu", thetaTag.Data(), bin_idx),
+          "gaus", xmin, xmax
+      );
+      fit_explore->SetParameters(hY->GetMaximum(), hY->GetMean(), hY->GetRMS());
+      fit_explore->SetLineWidth(1);
+      hY->Fit(fit_explore, "RQ0");  // 0 = do not draw exploratory fit
 
-      Double_t probs[3] = {0.16, 0.50, 0.84}, q[3] = {0,0,0};
-      hY->GetQuantiles(3, q, probs);
-      double sigma68 = 0.5 * (q[2] - q[0]);
-      if (!(sigma68 > 0) || !std::isfinite(sigma68)) {
-        sigma68 = hY->GetRMS();
-        if (!(sigma68 > 0) || !std::isfinite(sigma68))
-          sigma68 = 3.0 * hY->GetBinWidth(1);
+      double mean1  = fit_explore->GetParameter(1);
+      double sigma1 = std::abs(fit_explore->GetParameter(2));
+
+      // fallback in case exploratory fit is garbage
+      if (!(sigma1 > 0) || !std::isfinite(sigma1)) sigma1 = hY->GetRMS();
+      if (!(sigma1 > 0) || !std::isfinite(sigma1)) sigma1 = 2.0 * hY->GetBinWidth(1);
+      if (!std::isfinite(mean1)) mean1 = hY->GetMean();
+
+      // 2nd fit: actual displayed fit within mean ± 2 sigma
+      double fit_lo = std::max(xmin, mean1 - 1.0 * sigma1);
+      double fit_hi = std::min(xmax, mean1 + 1.0 * sigma1);
+
+      if (fit_lo >= fit_hi) {
+          fit_lo = xmin;
+          fit_hi = xmax;
       }
 
-      if (hY->GetEntries() > 2000) {  // only rebin when stats are high enough
-     double binsPerSigma = sigma68 / hY->GetBinWidth(1);
-     if (binsPerSigma < 6.0 && hY->GetNbinsX() >= 400) hY->Rebin(2);
-      }
+      TF1* fit_final = new TF1(
+          Form("gaus_final_unified_%s_%zu", thetaTag.Data(), bin_idx),
+          "gaus", fit_lo, fit_hi
+      );
+      fit_final->SetParameters(hY->GetMaximum(), mean1, sigma1);
+      fit_final->SetLineWidth(1);
 
+      hY->Fit(fit_final, "RQ");   // this one is shown
 
-      // NOW set the display range and draw
-        cSlices->cd((int)bin_idx + 1);
-        gPad->Clear();
-        hY->GetXaxis()->SetRangeUser(xmin, xmax);
-        hY->Draw();
+      double mean     = fit_final->GetParameter(1);
+      double mean_err = fit_final->GetParError(1);
+      if (!(mean_err > 0) || !std::isfinite(mean_err)) mean_err = 0.0001;
+      //double mean_err = 0.0001;
 
-      auto k_init_for_p = [](double p){
-        double k = 1.3 + 0.25 * std::max(0.0, std::min((p - 1.5), 4.0));
-        return std::min(2.3, k);
-      };
-      double k1 = k_init_for_p(p_center);
-
-      double xLo = std::max(hY->GetXaxis()->GetXmin(), mode - k1 * sigma68);
-      double xHi = std::min(hY->GetXaxis()->GetXmax(), mode + k1 * sigma68);
-      if (xLo >= xHi) {
-        xLo = mode - 1.5 * sigma68;
-        xHi = mode + 1.5 * sigma68;
-      }
-
-      TF1* fit_init = new TF1(Form("gaus_init_unified_%s_%zu", thetaTag.Data(), bin_idx), "gaus", xLo, xHi);
-      hY->Fit(fit_init, "RQ0");
-
-      double mu    = fit_init->GetParameter(1);
-      double sigma = std::abs(fit_init->GetParameter(2));
-      if (!(sigma > 0) || !std::isfinite(sigma)) sigma = sigma68;
-
-      double k2 = 1.25;
-      double rLo = std::max(hY->GetXaxis()->GetXmin(), mu - k2 * sigma);
-      double rHi = std::min(hY->GetXaxis()->GetXmax(), mu + k2 * sigma);
-      if (rLo >= rHi) { rLo = mu - 1.2 * sigma; rHi = mu + 1.2 * sigma; }
-
-      TF1* fit_refined = new TF1(Form("gaus_refined_unified_%s_%zu", thetaTag.Data(), bin_idx), "gaus", rLo, rHi);
-      fit_refined->SetLineWidth(1); 
-      hY->Fit(fit_refined, "RQ");
-
-      // --- Gaussian fit ONLY around zero to avoid left contamination ---
-    const double fitMin0 = -0.03;
-    const double fitMax0 =  0.005;
-
-    // clamp to histogram axis limits (just in case)
-    TAxis* ax = hY->GetXaxis();
-    double fitLo = std::max(fitMin0, ax->GetXmin());
-    double fitHi = std::min(fitMax0, ax->GetXmax());
-    if (fitLo >= fitHi) continue;
-
-    // find bin range inside [fitLo, fitHi]
-    const double eps_fit = 1e-12;
-    int ib_lo = ax->FindFixBin(fitLo + eps_fit);
-    int ib_hi = ax->FindFixBin(fitHi - eps_fit);
-    ib_lo = std::max(1, std::min(ax->GetNbins(), ib_lo));
-    ib_hi = std::max(1, std::min(ax->GetNbins(), ib_hi));
-    if (ib_lo > ib_hi) continue;
-
-    // find local maximum IN the fit window (so contamination outside doesn't matter)
-    int imax_local = ib_lo;
-    double maxc = -1.0;
-    for (int ib = ib_lo; ib <= ib_hi; ++ib) {
-      double c = hY->GetBinContent(ib);
-      if (c > maxc) { maxc = c; imax_local = ib; }
-    }
-    double mu0 = ax->GetBinCenter(imax_local);
-    if (!std::isfinite(mu0)) mu0 = 0.0;
-
-    // estimate sigma using weighted moments inside the window (robust-ish)
-    double sum = 0.0, sumx = 0.0, sumx2 = 0.0;
-    for (int ib = ib_lo; ib <= ib_hi; ++ib) {
-      double w = hY->GetBinContent(ib);
-      if (w <= 0) continue;
-      double x = ax->GetBinCenter(ib);
-      sum   += w;
-      sumx  += w * x;
-      sumx2 += w * x * x;
-    }
-    double mean_w = (sum > 0) ? (sumx / sum) : mu0;
-    double var_w  = (sum > 0) ? (sumx2 / sum - mean_w * mean_w) : 0.0;
-    double sigma0 = (var_w > 0 && std::isfinite(var_w)) ? std::sqrt(var_w) : (3.0 * ax->GetBinWidth(1));
-
-    // keep sigma sane
-    sigma0 = std::max(sigma0, 2.0 * ax->GetBinWidth(1));
-    sigma0 = std::min(sigma0, 0.05); // don't let it blow up
-
-    // fit only inside [-0.02, 0.02]
-    TF1* fit_zero = new TF1(Form("gaus_zero_unified_%s_%zu", thetaTag.Data(), bin_idx), "gaus", fitLo, fitHi);
-    fit_zero->SetParameters(std::max(1.0, maxc), mu0, sigma0);
-
-    // keep the fit from wandering off into garbage
-    fit_zero->SetParLimits(1, fitLo, fitHi);     // mean within window
-    fit_zero->SetParLimits(2, 1e-4, 0.05);       // sigma positive, reasonable
-
-    hY->Fit(fit_zero, "RQ");  // R=range, Q=quiet (still draws), no "0" so you see the curve
-
-    double mean     = fit_zero->GetParameter(1);
-    double mean_err = 0.0001;
-    //if (!(mean_err > 0) || !std::isfinite(mean_err)) mean_err = 0.0001;
 
       int ip = gAll->GetN();
       gAll->SetPoint(ip, p_center, mean);
@@ -450,13 +408,13 @@ for (const auto& kv : theta_to_momentum_bins) {
       gPad->Update();
     }
 
-    cSlices->SaveAs((output_folder + std::string(thetaTag.Data()) +
-                     Form("_UNIFIED_slices_%s_phi_%.0f-%.0f_Vxyz_DC_cut.pdf", dp_Or_dpp.c_str(), phi_low, phi_high)).c_str());
+    cSlices->SaveAs((output_folder + detector + "/" + detector + "_" + std::string(thetaTag.Data()) +
+                     Form("_UNIFIED_slices_%s_phi_%.0f-%.0f_Vxyz_cut.pdf", dp_Or_dpp.c_str(), phi_low, phi_high)).c_str());
     delete cSlices;
 
     // Summary canvas (single panel)
     TCanvas* cSummary = new TCanvas(Form("unified_%s_summary", thetaTag.Data()),
-                                    Form("Unified mean %s vs momentum (FD, all sectors, %s)",
+                                    Form("Unified mean %s vs momentum (all sectors, %s)",
                                          dp_Or_dpp.c_str(), thetaTag.Data()),
                                     1400, 900);
     gAll->SetMarkerStyle(20);
@@ -584,8 +542,8 @@ for (const auto& kv : theta_to_momentum_bins) {
     zeroLine->SetLineWidth(2);
     zeroLine->Draw("SAME");
 
-    cSummary->SaveAs((output_folder + std::string(thetaTag.Data()) +
-                      "_mean_" + dp_Or_dpp + "_vs_momentum_bin_UNIFIED_phi_" + std::to_string(int(phi_low)) + "-" + std::to_string(int(phi_high)) + "_Vxyz_DC_cut.pdf").c_str());
+    cSummary->SaveAs((output_folder + detector + "/" + detector + "_" + std::string(thetaTag.Data()) +
+                      "_mean_" + dp_Or_dpp + "_vs_momentum_bin_UNIFIED_phi_" + std::to_string(int(phi_low)) + "-" + std::to_string(int(phi_high)) + "_Vxyz_cut.pdf").c_str());
     delete cSummary;
 
     // Keep graph object around only if you need it later; otherwise delete
@@ -877,4 +835,88 @@ void deltaP_VS_Prec_per_Phi_bin(ROOT::RDF::RNode rdf,
     }
 
     c.SaveAs((pdf + "]").c_str());
+}
+
+void plot_theta_vs_vz_pion(ROOT::RDF::RNode rdf, const std::string& output_folder, bool logz = true) {
+
+    auto df_FD = rdf.Filter("detector == \"FD\"");
+    auto df_CD = rdf.Filter("detector == \"CD\"");
+
+    // Book actions first
+    auto h_FD = df_FD.Histo2D(
+        {"h_theta_vs_vz_piplus_FD",
+         "FD #pi^{+} #theta vs vertex z;v_{z} (cm);#theta_{#pi^{+}} (deg)",
+         200, -40.0, 40.0, 200, 0.0, 150.0},
+        "vz_piplus", "Theta_rec"
+    );
+
+    auto h_CD = df_CD.Histo2D(
+        {"h_theta_vs_vz_piplus_CD",
+         "CD #pi^{+} #theta vs vertex z;v_{z} (cm);#theta_{#pi^{+}} (deg)",
+         200, -20.0, 20.0, 200, 0.0, 180.0},
+        "vz_piplus", "Theta_rec"
+    );
+
+    // Trigger one event loop for both histograms
+    h_FD.GetValue();
+
+    TCanvas c("c_theta_vs_vz_piplus", "c_theta_vs_vz_piplus", 900, 1000);
+    c.Divide(1, 2);
+
+    c.cd(1);
+    if (logz) gPad->SetLogz();
+    h_FD->Draw("COLZ");
+
+    c.cd(2);
+    if (logz) gPad->SetLogz();
+    h_CD->Draw("COLZ");
+
+    c.SaveAs((output_folder + "/theta_vs_vz_piplus.pdf").c_str());
+}
+
+void plot_Vx_VS_Vy_piplus(ROOT::RDF::RNode rdf, const std::string& output_folder, bool logz = false) {
+
+    auto df_FD = rdf.Filter("detector == \"FD\"");
+    auto df_CD = rdf.Filter("detector == \"CD\"");
+
+    // Book actions first
+    auto h_FD = df_FD.Histo2D(
+        {"h_vx_vs_vy_piplus_FD",
+         "FD #pi^{+} vertex x vs y;v_{x} (cm);v_{y} (cm)",
+         200, -3, 3, 200, -3, 3},
+        "vx_piplus", "vy_piplus"
+    );
+
+    auto h_CD = df_CD.Histo2D(
+        {"h_vx_vs_vy_piplus_CD",
+         "CD #pi^{+} vertex x vs y;v_{x} (cm);v_{y} (cm)",
+         200, -0.1, -0.04, 200, -0.1, -0.2},
+        "vx_piplus", "vy_piplus"
+    );
+
+    // Trigger one event loop for both histograms
+    h_FD.GetValue();
+
+    TCanvas c("c_vx_vs_vy_piplus", "c_vx_vs_vy_piplus", 900, 1000);
+    c.Divide(1, 2);
+
+    c.cd(1);
+    if (logz) gPad->SetLogz();
+    //h_FD->SetMarkerStyle(20);
+    //h_FD->SetMarkerSize(0.4);
+    //h_FD->SetMarkerColor(kBlack);
+    h_FD->Draw("SCAT");
+
+    c.cd(2);
+    if (logz) gPad->SetLogz();
+    //h_CD->GetXaxis()->SetRangeUser(-0.2, 0.2);
+    //h_CD->GetYaxis()->SetRangeUser(-0.26, -0.06);
+    //h_CD->SetMarkerStyle(20);
+    //h_CD->SetMarkerSize(0.4);
+    //h_CD->SetMarkerColor(kBlack);
+    h_CD->Draw("SCAT");
+
+    std::string log_suffix = logz ? "_logz" : "";
+
+    c.SaveAs((output_folder + "/vx_vs_vy_piplus" + log_suffix + "_SCAT.pdf").c_str());
 }
