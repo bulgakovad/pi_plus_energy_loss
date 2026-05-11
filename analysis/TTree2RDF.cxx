@@ -23,6 +23,8 @@
 #include <chrono>
 #include "TSystem.h"
 
+#include <ROOT/RVec.hxx>
+
 
 
 int isData = 0;  // 1 for real data, 0 for MC
@@ -37,13 +39,13 @@ std::string test_stat = (isBigStatistics == true) ? "" : "_TEST";
 
 //std::string root_file_path = "../data/clasdis_rga_fall18_inbendingBIG.root";
 
-std::string root_file_path = (isBigStatistics == true) ? "../data/output_FD_CD.root" : "../data/pi_plus_toy.root";
+std::string root_file_path = (isBigStatistics == true) ? "../data/multipion.root" : "../data/pi_plus_toy.root";
 
 
 //OUTPUT folder
 
 //const std::string OUTPUT_FOLDER = "analysis_out_clasdis_rga_fall18_inbending_BIG" + farm_out ;
-const std::string OUTPUT_FOLDER = "analysis_out_pi_plus_toy" + test_stat + farm_out ;
+const std::string OUTPUT_FOLDER = "multipion_analysis_out_pi_plus_toy" + test_stat + farm_out ;
 
 
 
@@ -99,7 +101,7 @@ int main() {
 
     // Define necessary variables in RDataFrame
     auto init_rdf = rdf//.Filter(p_piplus_gen > 0.0)
-                        //.Filter(p_piplus_rec > 0.0)
+                        //.Filter("n_rec_piplus == 1")
                         .Define("delta_p", "p_piplus_rec - p_piplus_gen")
                         .Define("piplus_rec_4_momentum", "TLorentzVector(px_piplus_rec, py_piplus_rec, pz_piplus_rec, 0.13957039)") // const number is mass of pi+
                         .Define("piplus_gen_4_momentum", "TLorentzVector(px_piplus_gen, py_piplus_gen, pz_piplus_gen, 0.13957039)") // const number is mass of pi+
@@ -107,7 +109,8 @@ int main() {
                         .Define("Phi_gen", "piplus_gen_4_momentum.Phi()*TMath::RadToDeg()")
                         .Define("Theta_rec", "piplus_rec_4_momentum.Theta()*TMath::RadToDeg()")
                         .Define("Theta_gen", "piplus_gen_4_momentum.Theta()*TMath::RadToDeg()")
-                        //.Define("Theta_piplus_DC", "TMath::ATan(sqrt(x1_piplus*x1_piplus + y1_piplus*y1_piplus)/z1_piplus)*TMath::RadToDeg()")
+                        .Define("Theta_piplus_DC", "TMath::ATan(sqrt(x1_piplus*x1_piplus + y1_piplus*y1_piplus)/z1_piplus)*TMath::RadToDeg()")
+                        .Define("Phi_piplus_DC", "TMath::ATan2(y1_piplus, x1_piplus)*TMath::RadToDeg()")
                         .Define("detector", [](int status) {
                             return status < 4000 ? std::string("FD") : (status < 8000 ? std::string("CD") : std::string("NA"));
                         }, {"status_piplus"})
@@ -123,7 +126,7 @@ int main() {
                         .Define("dp_norm", "delta_p / p_piplus_rec")
                         .Define("sector_pi_plus", "sector_piplus") 
                         .Define("DC_fiducial_cut_electron", "detector == \"FD\" && edge1_electron > 5.0 && edge2_electron > 5.0 && edge3_electron > 10.0")
-                        .Define("DC_fiducial_cut_piplus",  "detector == \"FD\" && edge1_piplus > 10 && edge2_piplus > 10 && edge3_piplus > 10.0")
+                        .Define("DC_fiducial_cut_piplus",  "detector == \"FD\" && edge1_piplus > 10.0 && edge2_piplus > 10.0 && edge3_piplus > 10.0")
                         .Define("Vz_cut", "vz_piplus > -10 && vz_piplus < 2")
                         .Define("Vxy_cut", "abs(vx_piplus) < 2.0 && abs(vy_piplus) < 2.0");
 
@@ -136,8 +139,9 @@ int main() {
    //for (const auto &col : init_rdf.GetColumnNames()) { 
    //std::cout << col << std::endl; }
    
-   //init_rdf.Display("edge1_piplus",20)->Print();
-
+    //init_rdf.Filter("n_rec_piplus > 1 ").Display("status_piplus_all",50)->Print();
+    //int n_electrons = init_rdf.Filter("n_rec_piplus == 1 && detector == \"FD\" && Vz_cut == true && Vxy_cut == true").Count().GetValue();
+    
     //Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
     //Phi_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
     //Phi_VS_Theta_FD_CD(init_rdf, OUTPUT_FOLDER);
@@ -171,15 +175,19 @@ int main() {
     //cfg[{41,45}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8}; 
     //cfg[{45,60}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8};
 
-    cfg[{30,31}] = {0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,5.0, 5.2, 5.4, 5.6, 5.8, 6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 8.0};
+    cfg[{38.0,38.5}] = {1.28, 1.32 };
+   
+
+    //cfg[{30,31}] = {0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8,5.0, 5.2, 5.4, 5.6, 5.8, 6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 8.0};
 
 
 
     //cfg[{0,180}] = {0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0};
 
     // for CD
+
     //cfg[{30,35}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6};
-    //cfg[{35,40}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6};
+    //cfg[{38,39}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6};
     //cfg[{40,45}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6};
     //cfg[{45,50}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6};
     //cfg[{50,55}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6};
@@ -191,20 +199,23 @@ int main() {
     //cfg[{80,85}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
     //cfg[{85,90}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
     //cfg[{90,95}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{95,100}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{100,105}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{105,110}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{110,115}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{115,120}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{120,125}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{125,130}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{130,135}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
-    //cfg[{135,140}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6 };
+    //cfg[{95,100}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2 };
+    //cfg[{100,105}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0 };
+    //cfg[{105,110}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6 };
+    //cfg[{110,115}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2 };
+    //cfg[{115,120}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8 };
+    //cfg[{120,125}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6 };
+    //cfg[{125,130}] = {0.2,0.4, 0.6, 0.8, 1.0, 1.2};
+    //cfg[{130,135}] = {0.2,0.4, 0.6, 0.8, 1.0 };
+    //cfg[{135,140}] = {0.2,0.4, 0.6 };
 
 
 
 
-    delta_P_VS_P_rec_unified_1D(init_rdf, OUTPUT_FOLDER, cfg, false, "FD");
+    //delta_P_VS_P_rec_unified_1D(init_rdf, OUTPUT_FOLDER, cfg, false, "FD","Theta_rec");
+    //plot_momentum_SingleRecPion_inside_theta_dp_bin(init_rdf, OUTPUT_FOLDER, 38.0, 39.0, -0.13, -0.05, 1.8, 2.0);
+
+    //Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
 
     //plot_theta_vs_vz_pion(init_rdf, OUTPUT_FOLDER);
     //plot_Vx_VS_Vy_piplus(init_rdf, OUTPUT_FOLDER);
@@ -213,14 +224,28 @@ int main() {
     //delta_P_VS_P_rec_FD_CD(init_rdf, OUTPUT_FOLDER);
     //Theta_VS_momentum_FD_CD(init_rdf, OUTPUT_FOLDER);
 
-   
+
+
     //Theta_VS_Phi_per_P_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","Theta_rec","Phi_rec");
     //P_VS_Phi_per_Theta_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","Theta_rec","Phi_rec");
     //P_VS_Theta_per_Phi_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","Theta_rec","Phi_rec");
-    //deltaP_VS_Prec_per_Phi_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","delta_p","Phi_rec");
-    //deltaP_VS_Prec_per_Theta_bin(init_rdf, OUTPUT_FOLDER, "p_piplus_rec","delta_p","Theta_rec");
+
+    //deltaP_VS_Prec_per_Theta_bin(init_rdf, OUTPUT_FOLDER, "FD", true, "p_piplus_rec","delta_p","Theta_rec");
+
+    //deltaP_VS_Prec_per_Phi_bin(init_rdf, OUTPUT_FOLDER, "FD", true, "p_piplus_rec","delta_p","Phi_piplus_DC");
+
+    deltaP_per_Phi_bin(init_rdf, OUTPUT_FOLDER, "FD");
+
+   
 
     //plot_X_vs_Y_piplus_FD(init_rdf, OUTPUT_FOLDER);
+
+    //plot_deltaP_multiRecPions_inside_theta_momentum_bin(init_rdf, OUTPUT_FOLDER,38.0, 39.0, 1.0, 1.2);
+
+    //plot_deltaP_SingleRecPion_inside_theta_momentum_bin(init_rdf, OUTPUT_FOLDER, 37.8, 38.2, 1.28, 1.32);
+
+    //High_low_loss_in_FD_study(init_rdf, OUTPUT_FOLDER, 38.0, 39.0, 1.0, 1.2);
+   
 
     auto end = std::chrono::high_resolution_clock::now(); // END
 

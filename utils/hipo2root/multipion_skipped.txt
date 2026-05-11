@@ -1,0 +1,4 @@
+/volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_19800-10701-6378.hipo    signal=6
+/volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_2453-10701-13192.hipo    signal=6
+/volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_2714-10701-8275.hipo    signal=6
+/volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_9421-10701-3526.hipo    signal=6

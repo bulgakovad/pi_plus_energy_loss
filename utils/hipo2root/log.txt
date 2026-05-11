@@ -8,7 +8,7 @@
    ------------------------------------------------------------------
 
 
-Processing h2r_fixed.c...
+Processing h2r_multypion.c...
 Reading HIPO...
 Opening: /volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_10000-10701-13587.hipo
 Opening: /volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_1000-10701-5108.hipo
@@ -19999,10 +19999,15 @@ Opening: /volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_9996-10701-899
 Opening: /volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_9997-10701-1477.hipo
 Opening: /volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_9998-10701-11005.hipo
 Opening: /volatile/clas12/osg/bulgakov/10701/piplus_electron_lund_9999-10701-18507.hipo
-Wrote data into: output_FD_CD.root
+Wrote data into: multipion.root
 Total events (per-file sum): 99925000
-Events kept (rec+mc e&pi+) : 32439629
+Events kept (rec e + >=1 rec pi+ + mc e/pi+): 32439629
 Files OK                   : 19985
 Files skipped              : 4
-Skipped-file log           : output_FD_CD_skipped.txt
-timer     : Real Time = 6832.54 seconds Cpu Time = 336.77 seconds
+Skipped-file log           : multipion_skipped.txt
+REC pi+ multiplicity summary over decoded events:
+  Events with exactly 1 REC pi+  : 38999481
+  Events with >1 REC pi+         : 999141
+  Events with 0 REC pi+          : 58159699
+  Total REC pi+ seen             : 41016469
+timer     : Real Time = 7145.84 seconds Cpu Time = 526.92 seconds

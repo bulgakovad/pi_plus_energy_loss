@@ -20,6 +20,8 @@
 #include <utility>
 #include "TLorentzVector.h"
 
+#include <ROOT/RVec.hxx>
+
 using ThetaRange = std::pair<double,double>;
 using ThetaToPBins = std::map<ThetaRange, std::vector<double>>;
 
@@ -70,27 +72,29 @@ void plot_delta_P_VS_P_rec_FD(ROOT::RDF::RNode rdf, const std::string& output_fo
     std::cout << "Saved 2D histogram as delta_P_VS_P_rec_FD.pdf" << std::endl;
 }
 
-void delta_P_VS_P_rec_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder, bool no_low_bin_cont = true) {
+void delta_P_VS_P_rec_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_folder, bool logz = true, bool no_low_bin_cont = true) {
     rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true");
     TCanvas canvas("c", "delta_P_VS_P_rec_FD_CD", 800, 600);
     canvas.Divide(1,2);
     canvas.cd(1);
     auto hist2D_1 = rdf.Filter("detector == \"FD\"").Histo2D(
-        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_FD", "delta P vs P_rec in FD;  P_rec (GeV); delta P (GeV)", 200, 0, 10, 200, -0.1, 0.1),
+        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_FD", "delta P vs P_rec in FD;  P_rec (GeV); delta P (GeV)", 200, 0, 10, 200, -0.2, 0.2),
         "p_piplus_rec", "delta_p"
     );
     if (no_low_bin_cont) {
         hist2D_1->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
     }
+    if (logz) gPad->SetLogz();
     hist2D_1->Draw("COLZ");
     canvas.cd(2);
     auto hist2D_2 = rdf.Filter("detector == \"CD\"").Histo2D(
-        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_CD", "delta P vs P_rec in CD;  P_rec (GeV); delta P (GeV)", 200, 0, 8, 200, -0.1, 0.1),
+        ROOT::RDF::TH2DModel("delta_P_VS_P_rec_CD", "delta P vs P_rec in CD;  P_rec (GeV); delta P (GeV)", 200, 0, 8, 200, -0.3, 0.3),
         "p_piplus_rec", "delta_p"
     );
     if (no_low_bin_cont) {
         hist2D_2->SetMinimum(5); // Set minimum to 0.5 to avoid showing empty bins in log scale
     }
+    if (logz) gPad->SetLogz();
     hist2D_2->Draw("COLZ");
 
     canvas.SaveAs((output_folder + "delta_P_VS_P_rec_FD_CD.pdf").c_str());
@@ -122,7 +126,7 @@ void Theta_VS_momentum_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_fol
     TCanvas canvas("c8", "Theta VS momentum FD CD", 800, 600);
     canvas.Divide(2,2);
     canvas.cd(1);
-    rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true");
+    rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true && n_rec_piplus == 1"); //   apply Vz and Vxy cuts. Only 1 rec
     auto hist1 = rdf.Filter("detector == \"FD\"").Histo2D(
         ROOT::RDF::TH2DModel("Theta_gen_VS_P_gen_FD", "Theta_gen VS P_gen in FD; P_gen (GeV); Theta_gen (deg)", 200, 0, 10, 200, 0, 140),
         "p_piplus_gen", "Theta_gen"
@@ -163,7 +167,7 @@ void Theta_VS_momentum_FD_CD(ROOT::RDF::RNode rdf, const std::string& output_fol
     }
     hist4->Draw("COLZ");
 
-    canvas.SaveAs((output_folder + "Theta_VS_momentum_FD_CD_Vz_Vxy_cut_setmin5.pdf").c_str());
+    canvas.SaveAs((output_folder + "Theta_VS_momentum_FD_CD_Vz_Vxy_cut_setmin5_bad_electron.pdf").c_str());
     std::cout << "Saved 2D histogram as Theta_VS_momentum_FD_CD.pdf" << std::endl;
 }
 
@@ -263,6 +267,7 @@ void delta_P_VS_P_rec_unified_1D(ROOT::RDF::RNode rdf,
                                    const ThetaToPBins& theta_to_momentum_bins,
                                    const bool normalized,
                                    const std::string detector,
+                                   const std::string& theta_choice,
                                    double phi_low = -180.0, double phi_high = 180.0){
 
   std::string dp_Or_dpp = normalized ? "dp_norm" : "delta_p";
@@ -276,12 +281,17 @@ for (const auto& kv : theta_to_momentum_bins) {
     if (momentum_bins.size() < 2) continue; // need at least 2 edges
     const size_t num_p_bins = momentum_bins.size() - 1;
 
-    TString thetaTag = Form("theta_%g_%g", th_lo, th_hi);
+    TString thetaTag = Form("%s_%g_%g", theta_choice.c_str(), th_lo, th_hi);
 
-    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"%s\" && Phi_rec >= %f && Phi_rec <= %f  && Theta_rec >= %f && Theta_rec < %f", detector.c_str(), phi_low, phi_high, th_lo, th_hi))
+   
+
+    ROOT::RDF::RNode rdf_filtered =rdf.Filter(Form("detector == \"%s\" && Phi_rec >= %f && Phi_rec <= %f  && %s >= %f && %s < %f", detector.c_str(), phi_low, phi_high, theta_choice.c_str(), th_lo, theta_choice.c_str(), th_hi))
                                     .Filter("Vz_cut == true") // Apply Vz cut to select good events
                                     //.Filter("DC_fiducial_cut_piplus == true") // Apply DC fiducial cut for pi+
-                                    .Filter("Vxy_cut == true"); // Apply Vxy cut to select good events
+                                    //.Filter("DC_fiducial_cut_electron == true") // Apply DC fiducial cut for electron
+                                    .Filter("Vxy_cut == true") // Apply Vxy cut to select good events
+                                    .Filter("status_electron < 0")  //electron trigger
+                                    .Filter("n_rec_piplus == 1"); // Select events with exactly one reconstructed pi+
 
     std::cout<<"Detector = "<<detector.c_str()<<std::endl;
 
@@ -291,18 +301,24 @@ for (const auto& kv : theta_to_momentum_bins) {
     TString h2name = Form("h2_unified_%s_%s", thetaTag.Data(), dp_Or_dpp.c_str());
     const int ny = 500; // default
     auto h2 = normalized
-        ? rdf_filtered.Histo2D(
-              ROOT::RDF::TH2DModel(h2name.Data(),
-                                   Form("dp/p vs P_{rec} ( all sectors, %s);P_{rec} (GeV/c);dp/p",
-                                        thetaTag.Data()),
-                                   100, 0.0, 9.0, ny, -0.5, 0.3),
-              "p_piplus_rec", "dp_norm")
-        : rdf_filtered.Histo2D(
-              ROOT::RDF::TH2DModel(h2name.Data(),
-                                   Form("delta P vs P_{rec} ( all sectors, %s);P_{rec} (GeV/c);delta P (GeV/c)",
-                                        thetaTag.Data()),
-                                   100, 0.0, 9.0, ny, -0.5, 0.3),
-              "p_piplus_rec", "delta_p");
+    ? rdf_filtered.Histo2D(
+          ROOT::RDF::TH2DModel(
+              h2name.Data(),
+              Form("dp/p vs P_{rec} (all sectors, %s);P_{rec} (GeV/c);dp/p",
+                   thetaTag.Data()),
+              (int)num_p_bins, momentum_bins.data(),
+              ny, -0.5, 0.5
+          ),
+          "p_piplus_rec", "dp_norm")
+    : rdf_filtered.Histo2D(
+          ROOT::RDF::TH2DModel(
+              h2name.Data(),
+              Form("delta P vs P_{rec} (all sectors, %s);P_{rec} (GeV/c);delta P (GeV/c)",
+                   thetaTag.Data()),
+              (int)num_p_bins, momentum_bins.data(),
+              ny, -0.5, 0.5
+          ),
+          "p_piplus_rec", "delta_p");
 
     // Slices canvas (show all momentum-bin projections)
     const int nCols = 7;
@@ -325,15 +341,8 @@ for (const auto& kv : theta_to_momentum_bins) {
       double p_center = 0.5 * (p_low + p_high);
 
       // --- Project Y using X-bin indices (excludes under/overflow) ---
-      TAxis* xax = h2->GetXaxis();
-      const int nbx = xax->GetNbins();
-      const double eps = 1e-9;
-
-      int ix_lo = xax->FindFixBin(p_low  + eps);
-      int ix_hi = xax->FindFixBin(p_high - eps);
-      ix_lo = std::max(1, std::min(nbx, ix_lo));
-      ix_hi = std::max(1, std::min(nbx, ix_hi));
-      if (ix_lo > ix_hi) continue;
+      int ix_lo = (int)bin_idx + 1;
+      int ix_hi = (int)bin_idx + 1;
 
       TH1* hY = h2->ProjectionY(
           Form("unified_%s_%s_bin%zu", thetaTag.Data(), dp_Or_dpp.c_str(), bin_idx + 1),
@@ -342,13 +351,19 @@ for (const auto& kv : theta_to_momentum_bins) {
 
       // Style and draw slice
       cSlices->cd((int)bin_idx + 1);
-      hY->SetTitle(Form("Theta %.1f-%.1f deg, P_{rec} %.2f-%.2f GeV/c; %s; Counts",
-                        th_lo, th_hi, p_low, p_high, dp_Or_dpp.c_str()));
+      hY->SetTitle(Form("%s %.1f-%.1f deg, P_{rec} %.2f-%.2f GeV/c; %s; Counts", theta_choice.c_str(), th_lo, th_hi, p_low, p_high, dp_Or_dpp.c_str()));
       double xmin = -0.15, xmax = 0.15;     // default
+      if(detector == "FD") {
       if (th_lo >= 25  && p_high >= 7.4) { xmin = -0.15; xmax = 0.30; }  
       else if (th_lo >= 37  && p_high >= 1.6) { xmin = -0.3; xmax = 0.15; }
       else if (th_lo >= 40 && p_high >=1.0) {xmin = -0.3; xmax = 0.15;}
-
+      }
+      else if (detector == "CD") {
+        //if(p_low >=2.0) {xmin = -0.3, xmax = 0.3;}
+        //if(p_low >=3.0) {xmin = -0.5, xmax = 0.5;}
+        xmin = -0.3; 
+        xmax = 0.15;
+      }
       
 
 
@@ -737,14 +752,24 @@ void P_VS_Theta_per_Phi_bin(ROOT::RDF::RNode rdf,
 // 1) 2D delta p VS P_rec for different theta slices
 void deltaP_VS_Prec_per_Theta_bin(ROOT::RDF::RNode rdf,
                                  const std::string& output_folder,
+                                 const std::string& detector,
+                                 bool logz = true,
                                  const std::string& p_col     = "p_piplus_rec",
                                  const std::string& dp_col    = "delta_p",
                                  const std::string& theta_col = "Theta_rec",
                                  int nTheta = 40, double thMin = 5.0, double thMax = 45.0,
-                                 int nP = 200, double pMin = 0.0, double pMax = 5.0,
-                                 int nDP = 200, double dpMin = -0.1, double dpMax = 0.1)
+                                 int nP = 200, double pMin = 0.0, double pMax = 8.0,
+                                 int nDP = 200, double dpMin = -0.3, double dpMax = 0.3)
 {
-    rdf = rdf.Filter("detector==\"FD\"");
+    rdf = rdf.Filter("detector== \"" + detector + "\"");
+
+    if(detector == "CD"){
+        nTheta = 24,  thMin = 20.0,  thMax = 140.0;
+    }
+    else if(detector == "FD"){
+        nTheta = 40,  thMin = 5.0,   thMax = 45.0;
+        pMax = 10;
+    }
 
     // X=theta, Y=p_rec, Z=delta_p
     auto h3 = rdf.Histo3D(
@@ -775,6 +800,7 @@ void deltaP_VS_Prec_per_Theta_bin(ROOT::RDF::RNode rdf,
 
         h2->SetDirectory(nullptr);
         h2->SetTitle(Form("#Deltap vs p_{rec} (#theta #in [%.2f, %.2f] deg); p_{rec} [GeV];#Deltap [GeV];", tlo, thi));
+        if (logz) gPad->SetLogz();
         h2->Draw("COLZ");
         c.SaveAs(pdf.c_str());
         delete h2;
@@ -789,14 +815,26 @@ void deltaP_VS_Prec_per_Theta_bin(ROOT::RDF::RNode rdf,
 // 2) 2D delta p VS P_rec for different phi slices
 void deltaP_VS_Prec_per_Phi_bin(ROOT::RDF::RNode rdf,
                                const std::string& output_folder,
+                               const std::string& detector,
+                               bool logz = true,
                                const std::string& p_col   = "p_piplus_rec",
                                const std::string& dp_col  = "delta_p",
                                const std::string& phi_col = "Phi_rec",
-                               int nPhi = 36, double phiMin = -180.0, double phiMax = 180.0,
-                               int nP = 200, double pMin = 0.0, double pMax = 5.0,
-                               int nDP = 200, double dpMin = -0.1, double dpMax = 0.1)
+                               int nPhi = 144, double phiMin = -180.0, double phiMax = 180.0,
+                               int nP = 200, double pMin = 0.0, double pMax = 8.0,
+                               int nDP = 200, double dpMin = -0.3, double dpMax = 0.3)
 {
-    rdf = rdf.Filter("detector==\"FD\"");
+
+    
+    rdf = rdf.Filter("detector== \"" + detector + "\"").Filter("Vz_cut == true && Vxy_cut == true").Filter("n_rec_piplus == 1").Filter("Theta_rec > 37 && Theta_rec < 40.0");
+
+     if(detector == "CD"){
+        nPhi = 36, phiMin = -180.0, phiMax = 180.0;
+    }
+    else if(detector == "FD"){
+        nPhi = 144, phiMin = -180.0, phiMax = 180.0;
+        pMax = 10;
+    }
 
     // X=phi, Y=p_rec, Z=delta_p
     auto h3 = rdf.Histo3D(
@@ -810,7 +848,8 @@ void deltaP_VS_Prec_per_Phi_bin(ROOT::RDF::RNode rdf,
 
     TCanvas c("c_dPvsP_perPhi", "delta p vs p_rec per phi bin", 900, 700);
 
-    const std::string pdf = output_folder + "deltaP_VS_Prec_per_Phi_bin.pdf";
+    const std::string pdf =
+    output_folder + Form("deltaP_VS_Prec_per_Phi_bin_Theta_37-40_%s.pdf", phi_col.c_str());
     c.SaveAs((pdf + "[").c_str());
 
     TAxis* xax = h3->GetXaxis();
@@ -827,9 +866,82 @@ void deltaP_VS_Prec_per_Phi_bin(ROOT::RDF::RNode rdf,
 
         h2->SetDirectory(nullptr);
         h2->SetTitle(Form("#Deltap vs p_{rec} (#phi #in [%.1f, %.1f] deg); p_{rec} [GeV];#Deltap [GeV];", plo, phi));
+        if (logz) gPad->SetLogz();
         h2->Draw("COLZ");
         c.SaveAs(pdf.c_str());
         delete h2;
+
+        h3->GetXaxis()->SetRange(0, 0);
+    }
+
+    c.SaveAs((pdf + "]").c_str());
+}
+
+
+void deltaP_per_Phi_bin(ROOT::RDF::RNode rdf,
+                        const std::string& output_folder,
+                        const std::string& detector,
+                        const std::string& p_col   = "p_piplus_rec",
+                        const std::string& dp_col  = "delta_p",
+                        const std::string& phi_col = "Phi_piplus_DC",
+                        int nPhi = 144, double phiMin = -180.0, double phiMax = 180.0,
+                        int nP = 200, double pMin = 0.0, double pMax = 8.0,
+                        int nDP = 200, double dpMin = -0.3, double dpMax = 0.3)
+{
+    rdf = rdf.Filter("detector== \"" + detector + "\"")
+             .Filter("Vz_cut == true && Vxy_cut == true")
+             .Filter("n_rec_piplus == 1")
+             .Filter("Theta_rec > 38.0 && Theta_rec < 39.0");
+
+    if (detector == "CD") {
+        nPhi = 144;
+        phiMin = -180.0;
+        phiMax = 180.0;
+    }
+    else if (detector == "FD") {
+        nPhi = 144;
+        phiMin = -180.0;
+        phiMax = 180.0;
+        pMax = 10.0;
+    }
+
+    // Keep the same TH3D logic: X=phi, Y=p_rec, Z=delta_p
+    auto h3 = rdf.Histo3D(
+        ROOT::RDF::TH3DModel("h3_phi_p_dp__dP_perPhi",
+                             "Phase space;#phi [deg];p_{rec} [GeV];#Deltap [GeV]",
+                             nPhi, phiMin, phiMax,
+                             nP, pMin, pMax,
+                             nDP, dpMin, dpMax),
+        phi_col, p_col, dp_col
+    );
+
+    TCanvas c("c_dP_perPhi", "delta p per phi bin", 900, 700);
+
+    const std::string pdf =
+        output_folder + Form("deltaP_per_Phi_bin_Theta_38-39_%s.pdf", phi_col.c_str());
+    c.SaveAs((pdf + "[").c_str());
+
+    TAxis* xax = h3->GetXaxis();
+    for (int ix = 1; ix <= xax->GetNbins(); ++ix) {
+        const double phi_lo = xax->GetBinLowEdge(ix);
+        const double phi_hi = xax->GetBinUpEdge(ix);
+
+        // Select one phi bin
+        h3->GetXaxis()->SetRange(ix, ix);
+
+        // Project only onto delta_p (Z axis), integrating over all p_rec
+        TH1* proj = h3->Project3D("z");
+        TH1D* h1 = (TH1D*)proj->Clone(Form("h1_dP_phi_%d", ix));
+        delete proj;
+
+        h1->SetDirectory(nullptr);
+        h1->SetTitle(Form("#Deltap (#phi #in [%.1f, %.1f] deg);#Deltap [GeV];Counts",
+                          phi_lo, phi_hi));
+        h1->SetLineWidth(2);
+        h1->Draw("HIST");
+
+        c.SaveAs(pdf.c_str());
+        delete h1;
 
         h3->GetXaxis()->SetRange(0, 0);
     }
@@ -919,4 +1031,239 @@ void plot_Vx_VS_Vy_piplus(ROOT::RDF::RNode rdf, const std::string& output_folder
     std::string log_suffix = logz ? "_logz" : "";
 
     c.SaveAs((output_folder + "/vx_vs_vy_piplus" + log_suffix + "_SCAT.pdf").c_str());
+}
+
+//////////////////////Multipion studies////////////////////////////////////////
+
+
+void plot_deltaP_multiRecPions_inside_theta_momentum_bin(ROOT::RDF::RNode rdf,
+                                                         const std::string& output_folder,
+                                                         double theta_low = 38.0,
+                                                         double theta_high = 39.0,
+                                                         double p_low = 1.0,
+                                                         double p_high = 1.2)
+{
+  using RVecF = ROOT::VecOps::RVec<float>;
+  using RVecI = ROOT::VecOps::RVec<int>;
+
+  auto theta_from_xyz = [](const RVecF& px,
+                           const RVecF& py,
+                           const RVecF& pz) {
+    RVecF theta(px.size(), -999.f);
+    for (size_t i = 0; i < px.size(); ++i) {
+      const float p = std::sqrt(px[i]*px[i] + py[i]*py[i] + pz[i]*pz[i]);
+      if (p > 0.f) theta[i] = std::acos(pz[i]/p) * 180.0 / TMath::Pi();
+    }
+    return theta;
+  };
+
+  auto abs_status = [](const RVecI& st) {
+    RVecI out(st.size(), 0);
+    for (size_t i = 0; i < st.size(); ++i) out[i] = std::abs(st[i]);
+    return out;
+  };
+
+  auto delta_p_from_gen = [](const RVecF& p_rec_all, float p_gen) {
+    RVecF out(p_rec_all.size(), 0.f);
+    for (size_t i = 0; i < p_rec_all.size(); ++i) out[i] = p_rec_all[i] - p_gen;
+    return out;
+  };
+
+
+  const std::string mask_all =
+    "(theta_rec_all >= " + std::to_string(theta_low) + "f) && "
+    "(theta_rec_all < "  + std::to_string(theta_high) + "f) && "
+    "(p_piplus_rec_all >= " + std::to_string(p_low) + "f) && "
+    "(p_piplus_rec_all < "  + std::to_string(p_high) + "f)";
+
+  auto df = rdf
+    .Filter("n_rec_piplus == 2")
+    .Define("theta_rec_all", theta_from_xyz,
+            {"px_piplus_rec_all", "py_piplus_rec_all", "pz_piplus_rec_all"})
+    .Define("abs_status_all", abs_status, {"status_piplus_all"})
+    .Define("delta_p_all", delta_p_from_gen, {"p_piplus_rec_all", "p_piplus_gen"})
+
+    // safer detector split
+    .Define("isFD_all", "(abs_status_all >= 2000) && (abs_status_all < 4000)")
+    .Define("isCD_all", "(abs_status_all >= 4000)")
+
+    .Define("mask_bin_all", mask_all)
+    .Define("mask_bin_FD", "mask_bin_all && isFD_all")
+    .Define("mask_bin_CD", "mask_bin_all && isCD_all")
+
+    // require >1 reconstructed pion INSIDE the chosen theta-p bin
+    .Define("n_rec_in_bin", "ROOT::VecOps::Sum(mask_bin_all)")
+    .Filter("n_rec_in_bin > 1")
+
+    // event-level flags, but now INSIDE the chosen bin
+    .Define("hasFD_in_bin", "ROOT::VecOps::Any(mask_bin_FD)")
+    .Define("hasCD_in_bin", "ROOT::VecOps::Any(mask_bin_CD)")
+
+    .Define("delta_p_sel_all", "delta_p_all[mask_bin_all]")
+    .Define("delta_p_sel_FD",  "delta_p_all[mask_bin_FD]")
+    .Define("delta_p_sel_CD",  "delta_p_all[mask_bin_CD]")
+
+    .Define("status_sel_all", "status_piplus_all[mask_bin_all]")
+    .Define("status_sel_FD",  "status_piplus_all[mask_bin_FD]")
+    .Define("status_sel_CD",  "status_piplus_all[mask_bin_CD]");
+
+  auto n_selected_events = df.Count();
+  auto n_mixed_events = df.Filter("hasFD_in_bin && hasCD_in_bin").Count();
+
+  auto n_sel_all = df.Define("n_tmp_all", "static_cast<int>(delta_p_sel_all.size())").Sum<int>("n_tmp_all");
+  auto n_sel_FD  = df.Define("n_tmp_fd",  "static_cast<int>(delta_p_sel_FD.size())").Sum<int>("n_tmp_fd");
+  auto n_sel_CD  = df.Define("n_tmp_cd",  "static_cast<int>(delta_p_sel_CD.size())").Sum<int>("n_tmp_cd");
+
+  auto h_all = df.Histo1D(
+      {"h_dp_all",
+       Form("#splitline{#Delta p for all rec #pi^{+} (FD and CD)}{in bin #theta #in [%.1f, %.1f] deg and p #in [%.1f, %.1f] GeV};#Delta p = p_{rec} - p_{gen} (GeV);Counts",
+            theta_low, theta_high, p_low, p_high),
+       200, -0.4, 0.4},
+      "delta_p_sel_all");
+
+  auto h_FD = df.Histo1D(
+      {"h_dp_fd",
+      Form("#splitline{#Delta p for FD rec #pi^{+}}{in bin #theta #in [%.1f, %.1f] deg and p #in [%.1f, %.1f] GeV};#Delta p = p_{rec} - p_{gen} (GeV);Counts",
+           theta_low, theta_high, p_low, p_high),
+       200, -0.4, 0.4},
+      "delta_p_sel_FD");
+
+ auto h_CD = df.Histo1D(
+    {"h_dp_cd",
+     Form("#splitline{#Delta p for CD rec #pi^{+}}{in bin #theta #in [%.1f, %.1f] deg and p #in [%.1f, %.1f] GeV};#Delta p = p_{rec} - p_{gen} (GeV);Counts",
+          theta_low, theta_high, p_low, p_high),
+     200, -0.4, 0.4},
+    "delta_p_sel_CD");
+
+
+
+ auto h_status_all = df.Histo1D(
+     {"h_status_all",
+      Form("#splitline{Status for all rec #pi^{+}}{in bin #theta #in [%.1f, %.1f] deg and p #in [%.1f, %.1f] GeV};status;Counts",
+           theta_low, theta_high, p_low, p_high),
+      100, 2000, 4200},
+     "status_sel_all");
+     
+ auto h_status_FD = df.Histo1D(
+     {"h_status_fd",
+      Form("#splitline{Status for FD rec #pi^{+}}{in bin #theta #in [%.1f, %.1f] deg and p #in [%.1f, %.1f] GeV};status;Counts",
+           theta_low, theta_high, p_low, p_high),
+      100, 2000, 2300},
+     "status_sel_FD");
+     
+ auto h_status_CD = df.Histo1D(
+     {"h_status_cd",
+      Form("#splitline{Status for CD rec #pi^{+}}{in bin #theta #in [%.1f, %.1f] deg and p #in [%.1f, %.1f] GeV};status;Counts",
+           theta_low, theta_high, p_low, p_high),
+      100, 4000, 4200},
+     "status_sel_CD");
+
+  std::cout << "Selected multi-rec-pion events ( >1 pion in chosen bin ) : " << *n_selected_events << "\n";
+  std::cout << "Selected events with both FD+CD in chosen bin             : " << *n_mixed_events << "\n";
+  std::cout << "Selected rec pions in bin (all)                           : " << *n_sel_all << "\n";
+  std::cout << "Selected rec pions in bin (FD)                            : " << *n_sel_FD  << "\n";
+  std::cout << "Selected rec pions in bin (CD)                            : " << *n_sel_CD  << "\n";
+
+  TCanvas c("c_dp_multi", "delta p multi-rec-pion study", 2000, 1000);
+  c.Divide(3,1);
+
+  c.cd(1);
+  h_all->SetLineWidth(2);
+  h_all->Draw("hist");
+
+  c.cd(2);
+  h_FD->SetLineWidth(2);
+  h_FD->Draw("hist");
+
+  c.cd(3);
+  h_CD->SetLineWidth(2);
+  h_CD->Draw("hist");
+
+  c.SaveAs((output_folder + "/multipion_studies" +
+            Form("/deltaP_MULTI_REC_pion_theta_%.1f-%.1f_p_%.1f-%.1f.pdf",
+                 theta_low, theta_high, p_low, p_high)).c_str());
+
+
+
+  TCanvas c_status("c_status_multi", "status multi-rec-pion study", 1500, 500);
+    c_status.Divide(3,1);
+
+    c_status.cd(1);
+    gPad->SetTopMargin(0.16);
+    h_status_all->SetLineWidth(2);
+    h_status_all->Draw("hist");
+
+    c_status.cd(2);
+    gPad->SetTopMargin(0.16);
+    h_status_FD->SetLineWidth(2);
+    h_status_FD->Draw("hist");
+
+    c_status.cd(3);
+    gPad->SetTopMargin(0.16);
+    h_status_CD->SetLineWidth(2);
+    h_status_CD->Draw("hist");
+
+    c_status.SaveAs((output_folder + "/multipion_studies" +
+                     Form("/status_MULTI_REC_pion_theta_%.1f-%.1f_p_%.1f-%.1f.pdf",
+                          theta_low, theta_high, p_low, p_high)).c_str());
+
+
+}
+
+
+
+void plot_deltaP_SingleRecPion_inside_theta_momentum_bin(ROOT::RDF::RNode rdf, const std::string& output_folder, double theta_low, double theta_high, double p_low, double p_high){
+
+    auto filtered_rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true").Filter("detector == \"FD\"").Filter("n_rec_piplus == 1").Filter("status_electron < 0").Filter(Form("Theta_rec > %f && Theta_rec < %f && p_piplus_rec > %f && p_piplus_rec < %f", theta_low, theta_high, p_low, p_high));
+
+        auto h_delta_p = filtered_rdf.Histo1D(
+            {"h_delta_p",
+            Form("#Delta p for #theta #in [%.1f, %.1f] deg and p #in [%.2f, %.2f] GeV;#Deltap (GeV);Counts", theta_low, theta_high, p_low, p_high),
+            200, -0.3, 0.1},
+            "delta_p"
+        );
+
+    TCanvas c("c_delta_p_bin", "delta p in theta-momentum bin", 900, 700);
+    h_delta_p->SetLineWidth(2);
+    h_delta_p->Draw("hist");
+    c.SaveAs((output_folder + "/multipion_studies" + Form("/deltaP_SINGLE_REC_pion_theta_%.1f-%.1f_p_%.2f-%.2f.pdf", theta_low, theta_high, p_low, p_high)).c_str());
+
+
+}
+
+
+void plot_phi_SingleRecPion_inside_theta_momentum_dp_bin(ROOT::RDF::RNode rdf, const std::string& output_folder, double theta_low, double theta_high, double dp_low, double dp_high, double p_low, double p_high){
+
+    auto filtered_rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true").Filter("abs(status_piplus) < 4000 && n_rec_piplus == 1").Filter(Form("Theta_rec > %f && Theta_rec < %f && delta_p > %f && delta_p < %f && p_piplus_rec > %f && p_piplus_rec < %f", theta_low, theta_high, dp_low, dp_high, p_low, p_high));
+
+        auto h_phi_p = filtered_rdf.Histo1D(
+            {"h_phi_p",
+            Form("rec in FD. Phi for #theta #in [%.1f, %.1f] deg and #Delta p #in [%.3f, %.3f] GeV;Phi (deg);Counts", theta_low, theta_high, dp_low, dp_high),
+            200, -180.0, 180.0},
+            "Phi_rec"
+        );
+
+    TCanvas c("c_delta_p_bin", "delta p in theta-momentum bin", 900, 700);
+    h_phi_p->SetLineWidth(2);
+    h_phi_p->Draw("hist");
+    c.SaveAs((output_folder + "/multipion_studies" + Form("/phi_SINGLE_REC_pion_theta_%.2f-%.2f_p_rec_%.2f-%.2f_dp_%.3f-%.3f_FD.pdf", theta_low, theta_high, p_low, p_high, dp_low, dp_high)).c_str());
+    }
+
+void plot_momentum_SingleRecPion_inside_theta_dp_bin(ROOT::RDF::RNode rdf, const std::string& output_folder, double theta_low, double theta_high, double dp_low, double dp_high, double p_low, double p_high){
+
+    auto filtered_rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true").Filter("abs(status_piplus) < 4000 && n_rec_piplus == 1").Filter(Form("Theta_rec > %f && Theta_rec < %f && delta_p > %f && delta_p < %f && p_piplus_rec > %f && p_piplus_rec < %f", theta_low, theta_high, dp_low, dp_high, p_low, p_high));
+
+        auto h_momentum_p = filtered_rdf.Histo1D(
+            {"h_momentum_p",
+            Form("rec in FD. Momentum for #theta #in [%.1f, %.1f] deg and #Delta p #in [%.3f, %.3f] GeV;Momentum (GeV);Counts", theta_low, theta_high, dp_low, dp_high),
+            200, 1.6, 2.2},
+            "p_piplus_rec"
+        );
+
+    TCanvas c("c_delta_p_bin", "delta p in theta-momentum bin", 900, 700);
+    h_momentum_p->SetLineWidth(2);
+    h_momentum_p->Draw("hist");
+    c.SaveAs((output_folder + "/multipion_studies" + Form("/momentum_SINGLE_REC_pion_theta_%.1f-%.1f_p_%.3f-%.3f_FD.pdf", theta_low, theta_high, dp_low, dp_high)).c_str());
+
+
 }
