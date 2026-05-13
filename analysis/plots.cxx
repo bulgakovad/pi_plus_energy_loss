@@ -881,6 +881,7 @@ void deltaP_VS_Prec_per_Phi_bin(ROOT::RDF::RNode rdf,
 void deltaP_per_Phi_bin(ROOT::RDF::RNode rdf,
                         const std::string& output_folder,
                         const std::string& detector,
+                        const double theta_min = 38.0, const double theta_max = 39.0,
                         const std::string& p_col   = "p_piplus_rec",
                         const std::string& dp_col  = "delta_p",
                         const std::string& phi_col = "Phi_piplus_DC",
@@ -891,7 +892,7 @@ void deltaP_per_Phi_bin(ROOT::RDF::RNode rdf,
     rdf = rdf.Filter("detector== \"" + detector + "\"")
              .Filter("Vz_cut == true && Vxy_cut == true")
              .Filter("n_rec_piplus == 1")
-             .Filter("Theta_rec > 38.0 && Theta_rec < 39.0");
+             .Filter("Theta_rec > " + std::to_string(theta_min) + " && Theta_rec < " + std::to_string(theta_max));
 
     if (detector == "CD") {
         nPhi = 144;
@@ -917,8 +918,7 @@ void deltaP_per_Phi_bin(ROOT::RDF::RNode rdf,
 
     TCanvas c("c_dP_perPhi", "delta p per phi bin", 900, 700);
 
-    const std::string pdf =
-        output_folder + Form("deltaP_per_Phi_bin_Theta_38-39_%s.pdf", phi_col.c_str());
+    const std::string pdf = output_folder + Form("/deltaP_per_Phi_bin_Theta_%.1f-%.1f_%s_%s.pdf",theta_min, theta_max, detector.c_str(), phi_col.c_str());
     c.SaveAs((pdf + "[").c_str());
 
     TAxis* xax = h3->GetXaxis();
@@ -1214,7 +1214,7 @@ void plot_deltaP_multiRecPions_inside_theta_momentum_bin(ROOT::RDF::RNode rdf,
 
 void plot_deltaP_SingleRecPion_inside_theta_momentum_bin(ROOT::RDF::RNode rdf, const std::string& output_folder, double theta_low, double theta_high, double p_low, double p_high){
 
-    auto filtered_rdf = rdf.Filter("Vz_cut == true && Vxy_cut == true").Filter("detector == \"FD\"").Filter("n_rec_piplus == 1").Filter("status_electron < 0").Filter(Form("Theta_rec > %f && Theta_rec < %f && p_piplus_rec > %f && p_piplus_rec < %f", theta_low, theta_high, p_low, p_high));
+    auto filtered_rdf = rdf.Filter("detector == \"FD\"").Filter("n_rec_piplus == 1").Filter("status_electron < 0").Filter(Form("Theta_rec > %f && Theta_rec < %f && p_piplus_rec > %f && p_piplus_rec < %f", theta_low, theta_high, p_low, p_high));
 
         auto h_delta_p = filtered_rdf.Histo1D(
             {"h_delta_p",

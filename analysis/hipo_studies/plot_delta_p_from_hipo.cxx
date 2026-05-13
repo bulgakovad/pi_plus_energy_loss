@@ -15,8 +15,8 @@
 void plot_delta_p_from_hipo(const char* input_hipo,
                             const char* output_png = "delta_p_check.png",
                             int nBins = 200,
-                            double dpMin = -0.30,
-                            double dpMax = 0.30)
+                            double dpMin = 1,
+                            double dpMax = 1)
 {
     std::cout << "Input HIPO: " << input_hipo << "\n";
     std::cout << "Output PNG: " << output_png << "\n";
