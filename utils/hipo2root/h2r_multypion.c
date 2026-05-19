@@ -228,9 +228,9 @@ static bool ProcessOneHipoFile(const std::string& filePath,
   if (!has_REC_Particle || !has_MC_Particle || !has_REC_Track || !has_REC_Traj) {
     std::cerr << "WARNING: required banks missing in " << filePath << " (skipping)\n";
     std::cerr << "  REC::Particle=" << has_REC_Particle
-              << "  MC::Particle="        << has_MC_Particle
-              << "  REC::Track="          << has_REC_Track
-              << "  REC::Traj="           << has_REC_Traj << "\n";
+              << "  MC::Particle="  << has_MC_Particle
+              << "  REC::Track="    << has_REC_Track
+              << "  REC::Traj="     << has_REC_Traj << "\n";
     return false;
   }
 
@@ -278,7 +278,7 @@ static bool ProcessOneHipoFile(const std::string& filePath,
   Long64_t total_rec_piplus_seen       = 0;
 
   while (reader.next()) {
-    reader.read(event);   // if a bad event aborts, only child dies
+    reader.read(event);
     ++n_this_file;
 
     event.getStructure(REC_particle);
@@ -289,18 +289,24 @@ static bool ProcessOneHipoFile(const std::string& filePath,
     const int Nrec = REC_particle.getRows();
     const int Nmc  = MC_particle.getRows();
 
-    // ========================= single source of truth for REC multiplicity =========================
+    // ========================= single source of truth for REC multiplicities =========================
     std::vector<int> rec_piplus_indices;
     rec_piplus_indices.reserve(std::max(0, Nrec));
 
     int idx_e_rec = -1;
+    int n_trigger_electrons = 0;
 
     for (int i = 0; i < Nrec; ++i) {
-      const int pid = REC_particle.getInt("pid", i);
+      const int pid    = REC_particle.getInt("pid", i);
+      const int status = REC_particle.getInt("status", i);
+
       if (pid == 211) {
         rec_piplus_indices.push_back(i);
-      } else if (pid == 11 && idx_e_rec < 0) {
-        idx_e_rec = i;
+      }
+
+      if (pid == 11 && status < 0) {
+        ++n_trigger_electrons;
+        if (idx_e_rec < 0) idx_e_rec = i;
       }
     }
 
@@ -311,11 +317,12 @@ static bool ProcessOneHipoFile(const std::string& filePath,
     else ++events_with_gt1_rec_piplus;
 
     total_rec_piplus_seen += n_rec_piplus;
-    // ======================= end single source of truth for REC multiplicity =======================
+    // ======================= end single source of truth for REC multiplicities =======================
 
     // only after that do physics-selection cuts
     if (Nrec <= 0 || Nmc <= 0) continue;
-    if (rec_piplus_indices.empty() || idx_e_rec < 0) continue;
+    if (rec_piplus_indices.empty()) continue;
+    if (n_trigger_electrons != 1 || idx_e_rec < 0) continue;  // only 1 trigger rec electron allowed !
 
     // --- pick one pi+/electron in MC
     int idx_piplus_mc = -1, idx_e_mc = -1;
@@ -391,10 +398,10 @@ static bool ProcessOneHipoFile(const std::string& filePath,
         if (REC_traj.getInt("detector", i) != 6) continue;
         if (REC_traj.getInt("pindex", i) != idx_piplus_rec) continue;
 
-        const int layer = REC_traj.getInt("layer",  i);
+        const int layer = REC_traj.getInt("layer", i);
         const float edge = REC_traj.getFloat("edge", i);
 
-        if (layer == 6)  {
+        if (layer == 6) {
           e1 = edge;
           x1 = REC_traj.getFloat("x", i);
           y1 = REC_traj.getFloat("y", i);
@@ -444,7 +451,7 @@ static bool ProcessOneHipoFile(const std::string& filePath,
       }
     }
 
-    // --- fill electron
+    // --- fill electron (unique trigger electron: pid==11 and status<0)
     px_electron_gen = MC_particle.getFloat("px", idx_e_mc);
     py_electron_gen = MC_particle.getFloat("py", idx_e_mc);
     pz_electron_gen = MC_particle.getFloat("pz", idx_e_mc);
@@ -459,7 +466,7 @@ static bool ProcessOneHipoFile(const std::string& filePath,
                                py_electron_rec*py_electron_rec +
                                pz_electron_rec*pz_electron_rec);
 
-    pid_electron    = REC_particle.getInt("pid",    idx_e_rec);
+    pid_electron    = REC_particle.getInt("pid", idx_e_rec);
     status_electron = REC_particle.getInt("status", idx_e_rec);
 
     // --- electron DC traj
@@ -467,10 +474,10 @@ static bool ProcessOneHipoFile(const std::string& filePath,
       if (REC_traj.getInt("detector", i) != 6) continue;
       if (REC_traj.getInt("pindex", i) != idx_e_rec) continue;
 
-      const int layer  = REC_traj.getInt("layer",  i);
+      const int layer  = REC_traj.getInt("layer", i);
       const float edge = REC_traj.getFloat("edge", i);
 
-      if (layer == 6)  {
+      if (layer == 6) {
         edge1_electron = edge;
         x1_electron = REC_traj.getFloat("x", i);
         y1_electron = REC_traj.getFloat("y", i);
@@ -644,7 +651,7 @@ void ProcessHipo(const Args& args) {
 
   std::cout << "Wrote data into: " << args.outRoot << "\n";
   std::cout << "Total events (per-file sum): " << total_events_check << "\n";
-  std::cout << "Events kept (rec e + >=1 rec pi+ + mc e/pi+): " << events_kept_total << "\n";
+  std::cout << "Events kept (exactly 1 trigger e + >=1 rec pi+ + mc e/pi+): " << events_kept_total << "\n";
   std::cout << "Files OK                   : " << files_ok << "\n";
   std::cout << "Files skipped              : " << files_skipped << "\n";
   std::cout << "Skipped-file log           : " << skippedLog << "\n";

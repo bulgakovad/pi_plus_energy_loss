@@ -1,0 +1,38 @@
+Selection statistics
+====================
+
+Input .dat file:       good_hipo.dat
+Detector:              FD
+Theta bin:             [38, 39) deg
+Momentum bin:          [1, 1.2) GeV
+Delta-p plot range:    [-0.5, 0.5] GeV
+Generated truth:       MC::Lund only
+Max events/output:     -1
+
+Input files
+-----------
+Readable HIPO files:   19979
+Files skipped missing MC::Lund: 0
+
+Common cut flow
+---------------
+Scanned events:                                                     99895000     
+Events with exactly 1 trigger electron:                             71774033      
+Events with no other negative tracks:                               71140695      
+Events with exactly 1 MC::Lund pi+:                                 71140695     
+
+Step 1 cut flow after common cuts
+---------------------------------
+Events with at least 1 positive track:                              56993146      
+Events where all positive tracks are FD:                            15402772      
+Events where all positive tracks are in theta/p bin:                    1069       
+Step 1 pass:                                                            1069     
+
+Events at each step 
+-----------------------
+Step 1: choose closest positive track to MC::Lund pi+:                  1069       
+Step 2: Step-1 selected track is pi+:                                    778      
+Step 2b: exactly one positive track:                                    1069     
+Step 3: Step-2 pi+ is only positive track:                               778     
+
+

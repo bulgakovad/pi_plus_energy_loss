@@ -39,7 +39,7 @@ std::string test_stat = (isBigStatistics == true) ? "" : "_TEST";
 
 //std::string root_file_path = "../data/clasdis_rga_fall18_inbendingBIG.root";
 
-std::string root_file_path = (isBigStatistics == true) ? "../data/multipion.root" : "../data/pi_plus_toy.root";
+std::string root_file_path = (isBigStatistics == true) ? "../data/multipion_upd.root" : "../data/pi_plus_toy.root";
 
 
 //OUTPUT folder
@@ -242,7 +242,9 @@ int main() {
 
     //plot_deltaP_multiRecPions_inside_theta_momentum_bin(init_rdf, OUTPUT_FOLDER,38.0, 39.0, 1.0, 1.2);
 
-    plot_deltaP_SingleRecPion_inside_theta_momentum_bin(init_rdf, OUTPUT_FOLDER, 38.0, 39.0, 1.0, 1.2);
+    //plot_deltaP_SingleRecPion_inside_theta_momentum_bin(init_rdf, OUTPUT_FOLDER, 38.0, 39.0, 1.0, 1.2);
+
+    plot_deltaP_multiRecPions_inside_theta_momentum_bin(init_rdf, OUTPUT_FOLDER,38.0, 39.0, 1.0, 1.2);
 
 
    
