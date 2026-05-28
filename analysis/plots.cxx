@@ -1214,7 +1214,7 @@ void plot_deltaP_multiRecPions_inside_theta_momentum_bin(ROOT::RDF::RNode rdf,
 
 void plot_deltaP_SingleRecPion_inside_theta_momentum_bin(ROOT::RDF::RNode rdf, const std::string& output_folder, double theta_low, double theta_high, double p_low, double p_high){
 
-    auto filtered_rdf = rdf.Filter("abs(status_piplus) < 4000").Filter("n_rec_piplus == 1").Filter("status_electron < 0").Filter(Form("Theta_rec > %f && Theta_rec < %f && p_piplus_rec > %f && p_piplus_rec < %f", theta_low, theta_high, p_low, p_high));
+    auto filtered_rdf = rdf.Filter("abs(status_piplus) < 4000").Filter("n_rec_piplus == 1").Filter(Form("Theta_rec > %f && Theta_rec < %f && p_piplus_rec > %f && p_piplus_rec < %f", theta_low, theta_high, p_low, p_high));
 
         auto h_delta_p = filtered_rdf.Histo1D(
             {"h_delta_p",

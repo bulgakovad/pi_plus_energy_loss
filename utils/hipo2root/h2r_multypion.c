@@ -295,6 +295,7 @@ static bool ProcessOneHipoFile(const std::string& filePath,
 
     int idx_e_rec = -1;
     int n_trigger_electrons = 0;
+    int n_rec_electrons_total = 0;
 
     for (int i = 0; i < Nrec; ++i) {
       const int pid    = REC_particle.getInt("pid", i);
@@ -304,10 +305,18 @@ static bool ProcessOneHipoFile(const std::string& filePath,
         rec_piplus_indices.push_back(i);
       }
 
-      if (pid == 11 && status < 0) {
+      if (pid == 11) {
+      ++n_rec_electrons_total;
+
+      if (status < 0) {
         ++n_trigger_electrons;
         if (idx_e_rec < 0) idx_e_rec = i;
       }
+}
+
+
+
+
     }
 
     n_rec_piplus = static_cast<int>(rec_piplus_indices.size());
@@ -322,7 +331,9 @@ static bool ProcessOneHipoFile(const std::string& filePath,
     // only after that do physics-selection cuts
     if (Nrec <= 0 || Nmc <= 0) continue;
     if (rec_piplus_indices.empty()) continue;
-    if (n_trigger_electrons != 1 || idx_e_rec < 0) continue;  // only 1 trigger rec electron allowed !
+    // exactly one REC electron total, and it must be the trigger electron
+    if (n_rec_electrons_total != 1) continue;
+    if (n_trigger_electrons != 1 || idx_e_rec < 0) continue;
 
     // --- pick one pi+/electron in MC
     int idx_piplus_mc = -1, idx_e_mc = -1;
@@ -651,7 +662,7 @@ void ProcessHipo(const Args& args) {
 
   std::cout << "Wrote data into: " << args.outRoot << "\n";
   std::cout << "Total events (per-file sum): " << total_events_check << "\n";
-  std::cout << "Events kept (exactly 1 trigger e + >=1 rec pi+ + mc e/pi+): " << events_kept_total << "\n";
+  std::cout << "Events kept (exactly 1 REC electron total, trigger e + >=1 rec pi+ + mc e/pi+): " << events_kept_total << "\n";
   std::cout << "Files OK                   : " << files_ok << "\n";
   std::cout << "Files skipped              : " << files_skipped << "\n";
   std::cout << "Skipped-file log           : " << skippedLog << "\n";

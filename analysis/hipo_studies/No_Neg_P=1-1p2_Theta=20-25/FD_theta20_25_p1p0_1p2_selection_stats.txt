@@ -1,0 +1,70 @@
+Updated three-step / five-output positive-track study
+Negative-hadron veto enabled
+====================================================
+
+Input .dat file:       good_hipo.dat
+Output prefix:         FD_theta38_39_p1p0_1p2
+Detector used for Step-1 candidate choice: FD
+Theta bin:             [20, 25) deg
+Momentum bin:          [1, 1.2) GeV
+Delta-p plot range:    [-0.5, 0.5] GeV
+Base selection:        exactly 1 trigger electron, no other electrons, no negative hadrons
+Generated truth:       MC::Lund only
+Max events/output:     -1
+Readable HIPO files:   19979
+Files skipped missing MC::Lund: 0
+
+Base selection cut flow
+-----------------------
+Scanned events:                                                               99895000     100.00% of previous     100.00% of scanned
+Exactly 1 REC electron total and it is trigger electron:                      71752894      71.83% of previous      71.83% of scanned
+No negative hadrons:                                                          71140695      99.15% of previous      71.22% of scanned
+Exactly 1 MC::Lund pi+:                                                       71140695     100.00% of previous      71.22% of scanned
+
+Step 1 cut flow after base selection
+------------------------------------
+Events with at least one requested-detector positive track:                   19666561      27.64% of previous      19.69% of scanned
+Selected requested-detector positive track inside theta/p bin:                  106058       0.54% of previous       0.11% of scanned
+Step 1 pass:                                                                    106058     100.00% of previous       0.11% of scanned
+
+Advisor-requested outputs
+-------------------------
+Step 1: selected detector-positive in theta/p bin:                              106058       0.15% of previous       0.11% of scanned
+Step 2.1: Step-1 selected track is pi+:                                          95458      90.01% of previous       0.10% of scanned
+Step 2.2: exactly one positive track after Step 1:                               97633      92.06% of previous       0.10% of scanned
+Step 3.1: Step-2.1 pion is only positive track:                                  91812      96.18% of previous       0.09% of scanned
+Step 3.2: Step-2.2 only positive track is pion:                                  91812      94.04% of previous       0.09% of scanned
+
+Consistency check
+-----------------
+Step 3.1 pass: 91812
+Step 3.2 pass: 91812
+Difference Step3.1 - Step3.2: 0
+
+Written counts after output cap
+-------------------------------
+Step 1 written:    106058   FD_theta38_39_p1p0_1p2_step1.hipo   FD_theta38_39_p1p0_1p2_step1_dp.png
+Step 2.1 written:  95458   FD_theta38_39_p1p0_1p2_step2p1_selectedTrackIsPip.hipo   FD_theta38_39_p1p0_1p2_step2p1_dp.png
+Step 2.2 written:  97633   FD_theta38_39_p1p0_1p2_step2p2_onlyOnePositive.hipo   FD_theta38_39_p1p0_1p2_step2p2_dp.png
+Step 3.1 written:  91812   FD_theta38_39_p1p0_1p2_step3p1_selectedPipOnlyPositive.hipo   FD_theta38_39_p1p0_1p2_step3p1_dp.png
+Step 3.2 written:  91812   FD_theta38_39_p1p0_1p2_step3p2_onlyPositiveIsPip.hipo   FD_theta38_39_p1p0_1p2_step3p2_dp.png
+
+Failure counters
+----------------
+Fail base electron requirement:                    28142106
+Fail no-negative-hadrons requirement:              612199
+Fail exactly 1 MC::Lund pi+ check:                 0
+Step 1 fail: no requested-detector positive track: 51474134
+Step 1 fail: selected positive outside theta/p:    19560503
+Step 2.1 fail: selected Step-1 track is not pi+:   10600
+Step 2.2 fail: not exactly one positive track:     8425
+Step 3.1 fail: Step-2.1 has extra positives:       3646
+Step 3.2 fail: only positive is not pi+:           5821
+
+Histogram statistics
+--------------------
+Step 1 entries:    106058.00   mean=-0.02   stddev=0.06
+Step 2.1 entries:  95458.00   mean=-0.01   stddev=0.06
+Step 2.2 entries:  97633.00   mean=-0.01   stddev=0.06
+Step 3.1 entries:  91812.00   mean=-0.01   stddev=0.06
+Step 3.2 entries:  91812.00   mean=-0.01   stddev=0.06

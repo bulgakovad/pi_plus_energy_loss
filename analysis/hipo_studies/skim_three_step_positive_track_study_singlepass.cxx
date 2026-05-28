@@ -1,57 +1,52 @@
 // skim_three_step_positive_track_study_singlepass.cxx
 //
-// Single-pass version.
+// Single-pass version for updated advisor request.
 //
-// Reads each input event ONCE and can write the same event to several output files.
-//
-// Common event requirement:
-//   - exactly 1 trigger electron: pid = 11 and status < 0
-//   - no other negative reconstructed tracks
+// Base selection:
+//   - exactly 1 reconstructed electron total
+//   - that one electron must be trigger electron: pid = 11 and status < 0
+//   - no other REC electrons with any status
+//   - NO negative hadrons allowed
+//       i.e. no REC tracks with charge < 0 except the trigger electron
 //   - exactly 1 generated pi+ from MC::Lund
 //   - NO vertex cuts
 //
-// Track bin:
-//   - FD/CD selected by abs(REC::Particle.status)
-//   - theta_rec in [theta_min, theta_max)
-//   - p_rec in [p_min, p_max)
-//
 // Step 1:
-//   - event must have at least one positive reconstructed track
-//   - ALL positive reconstructed tracks must be labeled as requested detector
-//       FD: abs(status) < 4000
-//       CD: abs(status) >= 4000
-//   - ALL positive reconstructed tracks must be inside the theta/p bin
-//   - if several positive tracks exist, choose the one closest to MC::Lund pi+ momentum
-//   - delta_p is computed using this selected track
+//   A. choose events with at least one positive track in requested detector, usually FD
+//   B. among requested-detector positive tracks, choose the one closest to MC::Lund pi+ momentum
+//   C. require this selected positive track to be inside theta/p bin
+//   D. make delta p histogram and save HIPO
 //
-// Step 2, ADVISOR-EXACT:
-//   - from Step 1, keep events where the Step-1 selected track is identified as pi+
-//   - multiple positive tracks are still allowed
-//   - delta_p is computed using the same Step-1 selected track
+// Step 2.1 after Step 1:
+//   - selected Step-1 track is identified as pi+
+//   - other positive tracks are allowed anywhere
 //
-// Step 2b:
-//   - exactly 1 positive reconstructed track total
-//   - PID can be anything
-//   - that one positive track must pass detector/theta/p bin
+// Step 2.2 after Step 1:
+//   - exactly one positive track total in REC::Particle
+//   - since this is after Step 1, that one track is the selected detector track in bin
 //
-// Step 3, ADVISOR-EXACT:
-//   - from Step 2, keep events with no other positive tracks
-//   - therefore exactly 1 positive track total, and it is the Step-1/Step-2 selected pi+
+// Step 3.1 after Step 2.1:
+//   - selected pion track has no other positive tracks
 //
-// Important:
-//   This script uses MC::Lund ONLY for generated truth.
-//   MC::Particle is intentionally not used and not used as fallback.
+// Step 3.2 after Step 2.2:
+//   - the only positive track from Step 2.2 is identified as pion
 //
-// Test:
+// With the no-negative-hadrons veto added back, Step 3.1/3.2 should be closer
+// to the old Step 3 logic.
 //
-// clas12root -l -b -q 'skim_three_step_positive_track_study_singlepass.cxx+("good_hipo.dat","FD_step1_test.hipo","FD_step2_test.hipo","FD_step2b_test.hipo","FD_step3_test.hipo","FD_step1_test.png","FD_step2_test.png","FD_step2b_test.png","FD_step3_test.png","FD",38,39,1.0,1.2,-0.5,0.5,200,10,"FD_selection_stats_test.txt")'
+// Generated truth:
+//   - MC::Lund ONLY
+//   - MC::Particle is not used
 //
-// Full:
+// Example test:
+// clas12root -l -b -q 'skim_three_step_positive_track_study_singlepass.cxx+("good_hipo.dat","FD_theta38_39_p1p0_1p2_test","FD",38,39,1.0,1.2,-0.5,0.5,200,1000)'
 //
-// clas12root -l -b -q 'skim_three_step_positive_track_study_singlepass.cxx+("good_hipo.dat","FD_step1_allPositiveTracksInBin.hipo","FD_step2_selectedTrackIsPip.hipo","FD_step2b_onlyOnePositive.hipo","FD_step3_selectedPipOnlyPositive.hipo","FD_step1_dp.png","FD_step2_dp.png","FD_step2b_dp.png","FD_step3_dp.png","FD",38,39,1.0,1.2,-0.5,0.5,200,-1,"FD_selection_stats.txt")'
+// Example full:
+// clas12root -l -b -q 'skim_three_step_positive_track_study_singlepass.cxx+("good_hipo.dat","FD_theta38_39_p1p0_1p2","FD",38,39,1.0,1.2,-0.5,0.5,200,-1)'
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -90,13 +85,19 @@ static bool ends_with(const std::string& s, const std::string& suffix)
            s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
+static bool file_exists(const std::string& path)
+{
+    std::ifstream f(path);
+    return f.good();
+}
+
 static std::vector<std::string> get_hipo_files_from_dat(const std::string& dat_file)
 {
     std::vector<std::string> hipo_files;
 
     std::ifstream fin(dat_file);
     if (!fin.is_open()) {
-        std::cerr << "ERROR: Cannot open .dat file: " << dat_file << std::endl;
+        std::cerr << "ERROR: Cannot open .dat file: " << dat_file << "\n";
         return hipo_files;
     }
 
@@ -116,12 +117,6 @@ static std::vector<std::string> get_hipo_files_from_dat(const std::string& dat_f
     }
 
     return hipo_files;
-}
-
-static bool file_exists(const std::string& path)
-{
-    std::ifstream f(path);
-    return f.good();
 }
 
 static bool detector_status_pass(int status_raw, const std::string& det)
@@ -155,17 +150,12 @@ static double theta_deg_from_p(double px, double py, double pz)
     return std::acos(c) * TMath::RadToDeg();
 }
 
-static bool track_in_bin(const TrackInfo& trk,
-                         const std::string& det,
-                         double theta_min_deg,
-                         double theta_max_deg,
-                         double p_min,
-                         double p_max)
+static bool track_in_theta_p_bin(const TrackInfo& trk,
+                                 double theta_min_deg,
+                                 double theta_max_deg,
+                                 double p_min,
+                                 double p_max)
 {
-    if (!detector_status_pass(trk.status, det)) {
-        return false;
-    }
-
     if (!std::isfinite(trk.p) || !std::isfinite(trk.theta_deg)) {
         return false;
     }
@@ -179,38 +169,6 @@ static bool track_in_bin(const TrackInfo& trk,
     }
 
     return true;
-}
-
-static void save_hist_png(TH1D* h,
-                          const char* output_png,
-                          const char* title,
-                          long long n_written)
-{
-    gStyle->SetOptStat(1110);
-
-    TCanvas* c = new TCanvas(Form("c_%s", h->GetName()), title, 900, 700);
-    c->SetTopMargin(0.10);
-    c->SetRightMargin(0.05);
-    c->SetLeftMargin(0.12);
-    c->SetBottomMargin(0.12);
-
-    h->SetLineWidth(2);
-    h->SetTitle(title);
-    h->Draw("hist");
-
-    TLine* zero = new TLine(0.0, 0.0, 0.0, h->GetMaximum() * 1.05);
-    zero->SetLineStyle(2);
-    zero->SetLineWidth(2);
-    zero->Draw("same");
-
-    TLatex lat;
-    lat.SetNDC();
-    lat.SetTextSize(0.035);
-    lat.DrawLatex(0.15, 0.92, Form("Written events: %lld", n_written));
-
-    c->SaveAs(output_png);
-
-    delete c;
 }
 
 static bool get_mclund_pip_momentum(hipo::bank& mcLund,
@@ -253,7 +211,7 @@ static void print_stat_line(std::ostream& os,
                             long long previous,
                             long long total)
 {
-    os << std::left << std::setw(62) << label
+    os << std::left << std::setw(72) << label
        << std::right << std::setw(14) << count
        << "   "
        << std::fixed << std::setprecision(2)
@@ -264,15 +222,40 @@ static void print_stat_line(std::ostream& os,
        << "\n";
 }
 
+static void save_hist_png(TH1D* h,
+                          const char* output_png,
+                          const char* title,
+                          long long n_written)
+{
+    gStyle->SetOptStat(1110);
+
+    TCanvas* c = new TCanvas(Form("c_%s", h->GetName()), title, 900, 700);
+    c->SetTopMargin(0.10);
+    c->SetRightMargin(0.05);
+    c->SetLeftMargin(0.12);
+    c->SetBottomMargin(0.12);
+
+    h->SetLineWidth(2);
+    h->SetTitle(title);
+    h->Draw("hist");
+
+    TLine* zero = new TLine(0.0, 0.0, 0.0, h->GetMaximum() * 1.05);
+    zero->SetLineStyle(2);
+    zero->SetLineWidth(2);
+    zero->Draw("same");
+
+    TLatex lat;
+    lat.SetNDC();
+    lat.SetTextSize(0.035);
+    lat.DrawLatex(0.15, 0.92, Form("Written events: %lld", n_written));
+
+    c->SaveAs(output_png);
+
+    delete c;
+}
+
 void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
-                                                     const char* output_step1_hipo,
-                                                     const char* output_step2_hipo,
-                                                     const char* output_step2b_hipo,
-                                                     const char* output_step3_hipo,
-                                                     const char* output_step1_png,
-                                                     const char* output_step2_png,
-                                                     const char* output_step2b_png,
-                                                     const char* output_step3_png,
+                                                     const char* output_prefix = "FD_theta38_39_p1p0_1p2",
                                                      const char* detector = "FD",
                                                      double theta_min_deg = 38.0,
                                                      double theta_max_deg = 39.0,
@@ -281,19 +264,9 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
                                                      double dp_min = -0.50,
                                                      double dp_max = 0.50,
                                                      int n_dp_bins = 200,
-                                                     int max_events_to_write = 1000,
-                                                     const char* output_stats_txt = "selection_stats.txt")
+                                                     int max_events_to_write = 1000)
 {
-    std::cout << "Macro started: SINGLE-PASS VERSION\n";
-    std::cout << "Input .dat file:    " << input_dat_file << "\n";
-    std::cout << "Detector:           " << detector << "\n";
-    std::cout << "Theta bin:          [" << theta_min_deg << ", " << theta_max_deg << ") deg\n";
-    std::cout << "Momentum bin:       [" << p_min << ", " << p_max << ") GeV\n";
-    std::cout << "Delta-p plot range: [" << dp_min << ", " << dp_max << "] GeV\n";
-    std::cout << "Max events/output:  " << max_events_to_write << "\n";
-    std::cout << "Generated truth:    MC::Lund ONLY\n";
-    std::cout << "Stats output:       " << output_stats_txt << "\n";
-
+    std::string prefix = output_prefix;
     std::string det = detector;
 
     if (det != "FD" && det != "CD") {
@@ -301,6 +274,31 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
                   << det << "\n";
         return;
     }
+
+    const std::string out_step1_hipo = prefix + "_step1.hipo";
+    const std::string out_21_hipo    = prefix + "_step2p1_selectedTrackIsPip.hipo";
+    const std::string out_22_hipo    = prefix + "_step2p2_onlyOnePositive.hipo";
+    const std::string out_31_hipo    = prefix + "_step3p1_selectedPipOnlyPositive.hipo";
+    const std::string out_32_hipo    = prefix + "_step3p2_onlyPositiveIsPip.hipo";
+
+    const std::string out_step1_png = prefix + "_step1_dp.png";
+    const std::string out_21_png    = prefix + "_step2p1_dp.png";
+    const std::string out_22_png    = prefix + "_step2p2_dp.png";
+    const std::string out_31_png    = prefix + "_step3p1_dp.png";
+    const std::string out_32_png    = prefix + "_step3p2_dp.png";
+
+    const std::string out_stats_txt = prefix + "_selection_stats.txt";
+
+    std::cout << "Macro started: SINGLE-PASS UPDATED 5-OUTPUT VERSION\n";
+    std::cout << "Input .dat file:    " << input_dat_file << "\n";
+    std::cout << "Output prefix:      " << prefix << "\n";
+    std::cout << "Detector for Step1 selected track: " << det << "\n";
+    std::cout << "Theta bin:          [" << theta_min_deg << ", " << theta_max_deg << ") deg\n";
+    std::cout << "Momentum bin:       [" << p_min << ", " << p_max << ") GeV\n";
+    std::cout << "Delta-p plot range: [" << dp_min << ", " << dp_max << "] GeV\n";
+    std::cout << "Max events/output:  " << max_events_to_write << "\n";
+    std::cout << "Base selection:     exactly 1 trigger electron and NO negative hadrons\n";
+    std::cout << "Generated truth:    MC::Lund ONLY\n\n";
 
     auto hipo_files_raw = get_hipo_files_from_dat(input_dat_file);
 
@@ -327,7 +325,7 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
         return;
     }
 
-    std::cout << "\nFound " << hipo_files.size() << " readable .hipo files\n";
+    std::cout << "Found " << hipo_files.size() << " readable .hipo files\n";
 
     for (size_t i = 0; i < hipo_files.size(); i++) {
         if (i < 10) {
@@ -341,71 +339,79 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
 
     TH1D* h_step1 = new TH1D(
         "h_step1",
-        "Step 1: all positive tracks in detector/theta/p bin;#Delta p = p_{rec}(selected positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
+        "Step 1: selected FD positive in #theta/p bin;#Delta p = p_{rec}(selected positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
         n_dp_bins, dp_min, dp_max
     );
 
-    TH1D* h_step2 = new TH1D(
-        "h_step2",
-        "Step 2: Step-1 selected track is #pi^{+};#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
+    TH1D* h_21 = new TH1D(
+        "h_21",
+        "Step 2.1: Step-1 selected track is #pi^{+};#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
         n_dp_bins, dp_min, dp_max
     );
 
-    TH1D* h_step2b = new TH1D(
-        "h_step2b",
-        "Step 2b: exactly one positive track;#Delta p = p_{rec}(only positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
+    TH1D* h_22 = new TH1D(
+        "h_22",
+        "Step 2.2: exactly one positive track after Step 1;#Delta p = p_{rec}(only positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
         n_dp_bins, dp_min, dp_max
     );
 
-    TH1D* h_step3 = new TH1D(
-        "h_step3",
-        "Step 3: Step-2 #pi^{+} is the only positive track;#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
+    TH1D* h_31 = new TH1D(
+        "h_31",
+        "Step 3.1: Step-2.1 #pi^{+} is the only positive track;#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
+        n_dp_bins, dp_min, dp_max
+    );
+
+    TH1D* h_32 = new TH1D(
+        "h_32",
+        "Step 3.2: Step-2.2 only positive track is #pi^{+};#Delta p = p_{rec}(only positive #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
         n_dp_bins, dp_min, dp_max
     );
 
     hipo::writer writer1;
-    hipo::writer writer2;
-    hipo::writer writer2b;
-    hipo::writer writer3;
+    hipo::writer writer21;
+    hipo::writer writer22;
+    hipo::writer writer31;
+    hipo::writer writer32;
 
     bool writers_opened = false;
 
     long long scanned_events = 0;
 
-    // Common cut-flow.
-    long long n_common_trigger_pass = 0;
-    long long n_common_no_other_negative_pass = 0;
-    long long n_common_lund_pip_pass = 0;
+    // Base cut-flow.
+    long long n_base_one_electron_total = 0;
+    long long n_base_one_trigger_electron = 0;
+    long long n_base_no_negative_hadrons = 0;
+    long long n_base_mclund_pip = 0;
 
-    // Step-1 internal cut-flow after common cuts.
-    long long n_step1_has_positive = 0;
-    long long n_step1_all_positive_detector = 0;
-    long long n_step1_all_positive_theta_p = 0;
+    // Step 1 cut-flow.
+    long long n_step1_has_fd_positive = 0;
+    long long n_step1_selected_in_theta_p = 0;
 
     // Step pass counts before output cap.
     long long n_step1_pass = 0;
-    long long n_step2_pass = 0;
-    long long n_step2b_pass = 0;
-    long long n_step3_pass = 0;
+    long long n_21_pass = 0;
+    long long n_22_pass = 0;
+    long long n_31_pass = 0;
+    long long n_32_pass = 0;
 
     // Written counts after output cap.
     long long n_step1_written = 0;
-    long long n_step2_written = 0;
-    long long n_step2b_written = 0;
-    long long n_step3_written = 0;
+    long long n_21_written = 0;
+    long long n_22_written = 0;
+    long long n_31_written = 0;
+    long long n_32_written = 0;
 
     // Fail counters.
-    long long n_fail_trigger = 0;
-    long long n_fail_other_negative = 0;
+    long long n_fail_base_electron = 0;
+    long long n_fail_negative_hadrons = 0;
     long long n_fail_lund_pip = 0;
     long long n_fail_missing_mclund = 0;
-
-    long long n_step1_fail_no_positive = 0;
-    long long n_step1_fail_positive_not_detector = 0;
-    long long n_step1_fail_positive_not_in_theta_p_bin = 0;
-
-    long long n_step2_fail_selected_track_not_pip = 0;
-    long long n_step3_fail_extra_positive_tracks = 0;
+    long long n_step1_fail_no_fd_positive = 0;
+    long long n_step1_fail_selected_not_in_bin = 0;
+    long long n_21_fail_selected_not_pip = 0;
+    long long n_22_fail_not_exactly_one_positive = 0;
+    long long n_31_fail_extra_positive = 0;
+    long long n_32_fail_only_positive_not_pip = 0;
 
     for (size_t ifile = 0; ifile < hipo_files.size(); ifile++) {
         const std::string& input_hipo = hipo_files[ifile];
@@ -430,22 +436,25 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
 
         if (!writers_opened) {
             writer1.getDictionary()  = factory;
-            writer2.getDictionary()  = factory;
-            writer2b.getDictionary() = factory;
-            writer3.getDictionary()  = factory;
+            writer21.getDictionary() = factory;
+            writer22.getDictionary() = factory;
+            writer31.getDictionary() = factory;
+            writer32.getDictionary() = factory;
 
-            writer1.open(output_step1_hipo);
-            writer2.open(output_step2_hipo);
-            writer2b.open(output_step2b_hipo);
-            writer3.open(output_step3_hipo);
+            writer1.open(out_step1_hipo.c_str());
+            writer21.open(out_21_hipo.c_str());
+            writer22.open(out_22_hipo.c_str());
+            writer31.open(out_31_hipo.c_str());
+            writer32.open(out_32_hipo.c_str());
 
             writers_opened = true;
 
             std::cout << "Opened output files:\n"
-                      << "  " << output_step1_hipo << "\n"
-                      << "  " << output_step2_hipo << "\n"
-                      << "  " << output_step2b_hipo << "\n"
-                      << "  " << output_step3_hipo << "\n";
+                      << "  " << out_step1_hipo << "\n"
+                      << "  " << out_21_hipo << "\n"
+                      << "  " << out_22_hipo << "\n"
+                      << "  " << out_31_hipo << "\n"
+                      << "  " << out_32_hipo << "\n";
         }
 
         hipo::schema rec_schema;
@@ -487,22 +496,25 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
 
             if (scanned_events % 50000 == 0) {
                 std::cout << "Scanned " << scanned_events
-                          << " events | written:"
+                          << " | written:"
                           << " step1=" << n_step1_written
-                          << " step2=" << n_step2_written
-                          << " step2b=" << n_step2b_written
-                          << " step3=" << n_step3_written
+                          << " 2.1=" << n_21_written
+                          << " 2.2=" << n_22_written
+                          << " 3.1=" << n_31_written
+                          << " 3.2=" << n_32_written
                           << "\n";
             }
 
             event.getStructure(recPart);
             event.getStructure(mcLund);
 
-            int n_trigger_e = 0;
-            int n_other_negative = 0;
+            int n_electron_total = 0;
+            int n_trigger_electron = 0;
             int n_positive_tracks_total = 0;
+            int n_negative_hadrons_total = 0;
 
             std::vector<TrackInfo> positive_tracks;
+            std::vector<TrackInfo> fd_positive_tracks;
 
             for (int i = 0; i < recPart.getRows(); i++) {
                 const int pid = recPart.getInt("pid", i);
@@ -513,13 +525,18 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
                 const double py = recPart.getFloat("py", i);
                 const double pz = recPart.getFloat("pz", i);
 
-                const bool is_trigger_e = (pid == 11 && status < 0);
+                if (pid == 11) {
+                    n_electron_total++;
 
-                if (is_trigger_e) {
-                    n_trigger_e++;
+                    if (status < 0) {
+                        n_trigger_electron++;
+                    }
                 }
-                else if (charge < 0) {
-                    n_other_negative++;
+
+                // Added back to match the old "only trigger electron is negative" logic:
+                // reject negative non-electron tracks, e.g. pi-, K-, anti-proton.
+                if (charge < 0 && pid != 11) {
+                    n_negative_hadrons_total++;
                 }
 
                 TrackInfo trk;
@@ -536,22 +553,36 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
                 if (charge > 0) {
                     n_positive_tracks_total++;
                     positive_tracks.push_back(trk);
+
+                    if (detector_status_pass(status, det)) {
+                        fd_positive_tracks.push_back(trk);
+                    }
                 }
             }
 
-            if (n_trigger_e != 1) {
-                n_fail_trigger++;
+            // --------------------------------------------------------
+            // Base selection:
+            // exactly one REC electron total, and it is trigger electron.
+            // --------------------------------------------------------
+            if (!(n_electron_total == 1 && n_trigger_electron == 1)) {
+                n_fail_base_electron++;
                 continue;
             }
 
-            n_common_trigger_pass++;
+            n_base_one_electron_total++;
+            n_base_one_trigger_electron++;
 
-            if (n_other_negative != 0) {
-                n_fail_other_negative++;
+            // --------------------------------------------------------
+            // Added base selection:
+            // no negative hadrons allowed.
+            // The trigger electron is the only negative reconstructed track.
+            // --------------------------------------------------------
+            if (n_negative_hadrons_total != 0) {
+                n_fail_negative_hadrons++;
                 continue;
             }
 
-            n_common_no_other_negative_pass++;
+            n_base_no_negative_hadrons++;
 
             double p_lund = std::numeric_limits<double>::quiet_NaN();
             int n_lund_pip = 0;
@@ -561,129 +592,111 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
                 continue;
             }
 
-            n_common_lund_pip_pass++;
+            n_base_mclund_pip++;
 
             bool pass_step1 = false;
-            bool pass_step2 = false;
-            bool pass_step2b = false;
-            bool pass_step3 = false;
+            bool pass_21 = false;
+            bool pass_22 = false;
+            bool pass_31 = false;
+            bool pass_32 = false;
 
-            TrackInfo trk_step1;
-            TrackInfo trk_step2;
-            TrackInfo trk_step2b;
-            TrackInfo trk_step3;
+            TrackInfo selected_step1;
 
             // --------------------------------------------------------
-            // Step 1 cut-flow:
-            //   after common cuts, require:
-            //   1) at least one positive track
-            //   2) all positive tracks are requested detector
-            //   3) all positive tracks are inside theta/p bin
-            //   4) choose closest positive track to p_Lund(pi+)
+            // Step 1:
+            // choose requested-detector positive track closest to p_Lund(pi+),
+            // then require selected track inside theta/p bin.
             // --------------------------------------------------------
-            bool step1_all_positive_tracks_in_requested_detector = true;
-            bool step1_all_positive_tracks_in_theta_p_bin = true;
-
-            if (positive_tracks.empty()) {
-                step1_all_positive_tracks_in_requested_detector = false;
-                step1_all_positive_tracks_in_theta_p_bin = false;
-                n_step1_fail_no_positive++;
+            if (fd_positive_tracks.empty()) {
+                n_step1_fail_no_fd_positive++;
             }
             else {
-                n_step1_has_positive++;
-            }
+                n_step1_has_fd_positive++;
 
-            for (const auto& pos : positive_tracks) {
-                if (!detector_status_pass(pos.status, det)) {
-                    step1_all_positive_tracks_in_requested_detector = false;
+                double best_abs_dp = std::numeric_limits<double>::infinity();
+
+                for (const auto& trk : fd_positive_tracks) {
+                    const double abs_dp = std::abs(trk.p - p_lund);
+
+                    if (abs_dp < best_abs_dp) {
+                        best_abs_dp = abs_dp;
+                        selected_step1 = trk;
+                    }
                 }
 
-                if (!track_in_bin(pos, det, theta_min_deg, theta_max_deg, p_min, p_max)) {
-                    step1_all_positive_tracks_in_theta_p_bin = false;
-                }
-            }
-
-            if (!positive_tracks.empty()) {
-                if (!step1_all_positive_tracks_in_requested_detector) {
-                    n_step1_fail_positive_not_detector++;
+                if (!track_in_theta_p_bin(selected_step1,
+                                          theta_min_deg,
+                                          theta_max_deg,
+                                          p_min,
+                                          p_max)) {
+                    n_step1_fail_selected_not_in_bin++;
                 }
                 else {
-                    n_step1_all_positive_detector++;
-
-                    if (!step1_all_positive_tracks_in_theta_p_bin) {
-                        n_step1_fail_positive_not_in_theta_p_bin++;
-                    }
-                    else {
-                        n_step1_all_positive_theta_p++;
-
-                        double best_abs_dp = std::numeric_limits<double>::infinity();
-
-                        for (const auto& pos : positive_tracks) {
-                            const double abs_dp = std::abs(pos.p - p_lund);
-
-                            if (abs_dp < best_abs_dp) {
-                                best_abs_dp = abs_dp;
-                                trk_step1 = pos;
-                                pass_step1 = true;
-                            }
-                        }
-                    }
+                    pass_step1 = true;
+                    n_step1_selected_in_theta_p++;
                 }
             }
 
             // --------------------------------------------------------
-            // Step 2, ADVISOR-EXACT:
-            //
-            // From Step 1, keep events where the Step-1 selected track
-            // is identified as a pion.
+            // Step 2.1:
+            // from Step 1, selected track is pion.
             // --------------------------------------------------------
             if (pass_step1) {
-                if (trk_step1.pid == 211) {
-                    pass_step2 = true;
-                    trk_step2 = trk_step1;
+                if (selected_step1.pid == 211) {
+                    pass_21 = true;
                 }
                 else {
-                    n_step2_fail_selected_track_not_pip++;
+                    n_21_fail_selected_not_pip++;
                 }
             }
 
             // --------------------------------------------------------
-            // Step 2b:
-            //
-            // From Step 1's loose context, require exactly one positive
-            // track. That one positive track must be in detector/theta/p bin.
+            // Step 2.2:
+            // from Step 1, exactly one positive track total.
             // --------------------------------------------------------
-            if (n_positive_tracks_total == 1 && positive_tracks.size() == 1) {
-                const auto& only_positive = positive_tracks[0];
-
-                if (track_in_bin(only_positive, det, theta_min_deg, theta_max_deg, p_min, p_max)) {
-                    pass_step2b = true;
-                    trk_step2b = only_positive;
-                }
-            }
-
-            // --------------------------------------------------------
-            // Step 3, ADVISOR-EXACT:
-            //
-            // From Step 2, require no other positive tracks.
-            // --------------------------------------------------------
-            if (pass_step2) {
+            if (pass_step1) {
                 if (n_positive_tracks_total == 1) {
-                    pass_step3 = true;
-                    trk_step3 = trk_step2;
+                    pass_22 = true;
                 }
                 else {
-                    n_step3_fail_extra_positive_tracks++;
+                    n_22_fail_not_exactly_one_positive++;
+                }
+            }
+
+            // --------------------------------------------------------
+            // Step 3.1:
+            // from Step 2.1, no other positive tracks.
+            // --------------------------------------------------------
+            if (pass_21) {
+                if (n_positive_tracks_total == 1) {
+                    pass_31 = true;
+                }
+                else {
+                    n_31_fail_extra_positive++;
+                }
+            }
+
+            // --------------------------------------------------------
+            // Step 3.2:
+            // from Step 2.2, only positive track is identified as pion.
+            // --------------------------------------------------------
+            if (pass_22) {
+                if (selected_step1.pid == 211) {
+                    pass_32 = true;
+                }
+                else {
+                    n_32_fail_only_positive_not_pip++;
                 }
             }
 
             if (pass_step1) n_step1_pass++;
-            if (pass_step2) n_step2_pass++;
-            if (pass_step2b) n_step2b_pass++;
-            if (pass_step3) n_step3_pass++;
+            if (pass_21)    n_21_pass++;
+            if (pass_22)    n_22_pass++;
+            if (pass_31)    n_31_pass++;
+            if (pass_32)    n_32_pass++;
 
             if (pass_step1 && !reached_cap(n_step1_written, max_events_to_write)) {
-                const double dp = trk_step1.p - p_lund;
+                const double dp = selected_step1.p - p_lund;
 
                 h_step1->Fill(dp);
                 writer1.addEvent(event);
@@ -691,101 +704,71 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
 
                 if (n_step1_written <= 20) {
                     std::cout << "STEP1 KEEP"
-                              << " rec_index=" << trk_step1.index
-                              << " pid=" << trk_step1.pid
-                              << " charge=" << trk_step1.charge
-                              << " status=" << trk_step1.status
-                              << " theta=" << trk_step1.theta_deg
-                              << " p_rec=" << trk_step1.p
+                              << " idx=" << selected_step1.index
+                              << " pid=" << selected_step1.pid
+                              << " charge=" << selected_step1.charge
+                              << " status=" << selected_step1.status
+                              << " theta=" << selected_step1.theta_deg
+                              << " p_rec=" << selected_step1.p
                               << " p_lund=" << p_lund
                               << " dp=" << dp
-                              << " n_pos=" << n_positive_tracks_total
+                              << " n_pos_total=" << n_positive_tracks_total
+                              << " n_fd_pos=" << fd_positive_tracks.size()
+                              << " n_neg_hadrons=" << n_negative_hadrons_total
                               << "\n";
                 }
             }
 
-            if (pass_step2 && !reached_cap(n_step2_written, max_events_to_write)) {
-                const double dp = trk_step2.p - p_lund;
+            if (pass_21 && !reached_cap(n_21_written, max_events_to_write)) {
+                const double dp = selected_step1.p - p_lund;
 
-                h_step2->Fill(dp);
-                writer2.addEvent(event);
-                n_step2_written++;
-
-                if (n_step2_written <= 20) {
-                    std::cout << "STEP2 KEEP"
-                              << " rec_index=" << trk_step2.index
-                              << " pid=" << trk_step2.pid
-                              << " charge=" << trk_step2.charge
-                              << " status=" << trk_step2.status
-                              << " theta=" << trk_step2.theta_deg
-                              << " p_rec=" << trk_step2.p
-                              << " p_lund=" << p_lund
-                              << " dp=" << dp
-                              << " n_pos=" << n_positive_tracks_total
-                              << "\n";
-                }
+                h_21->Fill(dp);
+                writer21.addEvent(event);
+                n_21_written++;
             }
 
-            if (pass_step2b && !reached_cap(n_step2b_written, max_events_to_write)) {
-                const double dp = trk_step2b.p - p_lund;
+            if (pass_22 && !reached_cap(n_22_written, max_events_to_write)) {
+                const double dp = selected_step1.p - p_lund;
 
-                h_step2b->Fill(dp);
-                writer2b.addEvent(event);
-                n_step2b_written++;
-
-                if (n_step2b_written <= 20) {
-                    std::cout << "STEP2B KEEP"
-                              << " rec_index=" << trk_step2b.index
-                              << " pid=" << trk_step2b.pid
-                              << " charge=" << trk_step2b.charge
-                              << " status=" << trk_step2b.status
-                              << " theta=" << trk_step2b.theta_deg
-                              << " p_rec=" << trk_step2b.p
-                              << " p_lund=" << p_lund
-                              << " dp=" << dp
-                              << " n_pos=" << n_positive_tracks_total
-                              << "\n";
-                }
+                h_22->Fill(dp);
+                writer22.addEvent(event);
+                n_22_written++;
             }
 
-            if (pass_step3 && !reached_cap(n_step3_written, max_events_to_write)) {
-                const double dp = trk_step3.p - p_lund;
+            if (pass_31 && !reached_cap(n_31_written, max_events_to_write)) {
+                const double dp = selected_step1.p - p_lund;
 
-                h_step3->Fill(dp);
-                writer3.addEvent(event);
-                n_step3_written++;
+                h_31->Fill(dp);
+                writer31.addEvent(event);
+                n_31_written++;
+            }
 
-                if (n_step3_written <= 20) {
-                    std::cout << "STEP3 KEEP"
-                              << " rec_index=" << trk_step3.index
-                              << " pid=" << trk_step3.pid
-                              << " charge=" << trk_step3.charge
-                              << " status=" << trk_step3.status
-                              << " theta=" << trk_step3.theta_deg
-                              << " p_rec=" << trk_step3.p
-                              << " p_lund=" << p_lund
-                              << " dp=" << dp
-                              << " n_pos=" << n_positive_tracks_total
-                              << "\n";
-                }
+            if (pass_32 && !reached_cap(n_32_written, max_events_to_write)) {
+                const double dp = selected_step1.p - p_lund;
+
+                h_32->Fill(dp);
+                writer32.addEvent(event);
+                n_32_written++;
             }
 
             if (max_events_to_write > 0 &&
-                n_step1_written  >= max_events_to_write &&
-                n_step2_written  >= max_events_to_write &&
-                n_step2b_written >= max_events_to_write &&
-                n_step3_written  >= max_events_to_write) {
+                n_step1_written >= max_events_to_write &&
+                n_21_written    >= max_events_to_write &&
+                n_22_written    >= max_events_to_write &&
+                n_31_written    >= max_events_to_write &&
+                n_32_written    >= max_events_to_write) {
 
-                std::cout << "\nReached max_events_to_write for all four outputs.\n";
+                std::cout << "\nReached max_events_to_write for all five outputs.\n";
                 break;
             }
         }
 
         if (max_events_to_write > 0 &&
-            n_step1_written  >= max_events_to_write &&
-            n_step2_written  >= max_events_to_write &&
-            n_step2b_written >= max_events_to_write &&
-            n_step3_written  >= max_events_to_write) {
+            n_step1_written >= max_events_to_write &&
+            n_21_written    >= max_events_to_write &&
+            n_22_written    >= max_events_to_write &&
+            n_31_written    >= max_events_to_write &&
+            n_32_written    >= max_events_to_write) {
 
             break;
         }
@@ -793,181 +776,170 @@ void skim_three_step_positive_track_study_singlepass(const char* input_dat_file,
 
     if (writers_opened) {
         writer1.close();
-        writer2.close();
-        writer2b.close();
-        writer3.close();
+        writer21.close();
+        writer22.close();
+        writer31.close();
+        writer32.close();
     }
     else {
-        std::cerr << "ERROR: writers were never opened. No output HIPO files written.\n";
+        std::cerr << "ERROR: writers were never opened. No HIPO files written.\n";
     }
 
     save_hist_png(
         h_step1,
-        output_step1_png,
-        "Step 1: all positive tracks in detector/theta/p bin;#Delta p = p_{rec}(selected positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
+        out_step1_png.c_str(),
+        "Step 1: selected FD positive in #theta/p bin;#Delta p = p_{rec}(selected positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
         n_step1_written
     );
 
     save_hist_png(
-        h_step2,
-        output_step2_png,
-        "Step 2: Step-1 selected track is #pi^{+};#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
-        n_step2_written
+        h_21,
+        out_21_png.c_str(),
+        "Step 2.1: Step-1 selected track is #pi^{+};#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
+        n_21_written
     );
 
     save_hist_png(
-        h_step2b,
-        output_step2b_png,
-        "Step 2b: exactly one positive track;#Delta p = p_{rec}(only positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
-        n_step2b_written
+        h_22,
+        out_22_png.c_str(),
+        "Step 2.2: exactly one positive track after Step 1;#Delta p = p_{rec}(only positive) - p_{Lund}(#pi^{+}) [GeV];Counts",
+        n_22_written
     );
 
     save_hist_png(
-        h_step3,
-        output_step3_png,
-        "Step 3: Step-2 #pi^{+} is the only positive track;#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
-        n_step3_written
+        h_31,
+        out_31_png.c_str(),
+        "Step 3.1: Step-2.1 #pi^{+} is the only positive track;#Delta p = p_{rec}(selected #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
+        n_31_written
     );
 
-    // ------------------------------------------------------------
-    // Write stats file.
-    // ------------------------------------------------------------
-    std::ofstream stats(output_stats_txt);
+    save_hist_png(
+        h_32,
+        out_32_png.c_str(),
+        "Step 3.2: Step-2.2 only positive track is #pi^{+};#Delta p = p_{rec}(only positive #pi^{+}) - p_{Lund}(#pi^{+}) [GeV];Counts",
+        n_32_written
+    );
+
+    std::ofstream stats(out_stats_txt);
 
     if (!stats.is_open()) {
-        std::cerr << "ERROR: Could not open stats output file: "
-                  << output_stats_txt << "\n";
+        std::cerr << "ERROR: could not open stats output file: "
+                  << out_stats_txt << "\n";
     }
     else {
-        stats << "Selection statistics\n";
-        stats << "====================\n\n";
+        stats << "Updated three-step / five-output positive-track study\n";
+        stats << "Negative-hadron veto enabled\n";
+        stats << "====================================================\n\n";
 
         stats << "Input .dat file:       " << input_dat_file << "\n";
-        stats << "Detector:              " << det << "\n";
+        stats << "Output prefix:         " << prefix << "\n";
+        stats << "Detector used for Step-1 candidate choice: " << det << "\n";
         stats << "Theta bin:             [" << theta_min_deg << ", " << theta_max_deg << ") deg\n";
         stats << "Momentum bin:          [" << p_min << ", " << p_max << ") GeV\n";
         stats << "Delta-p plot range:    [" << dp_min << ", " << dp_max << "] GeV\n";
+        stats << "Base selection:        exactly 1 trigger electron, no other electrons, no negative hadrons\n";
         stats << "Generated truth:       MC::Lund only\n";
-        stats << "Max events/output:     " << max_events_to_write << "\n\n";
-
-        stats << "Input files\n";
-        stats << "-----------\n";
+        stats << "Max events/output:     " << max_events_to_write << "\n";
         stats << "Readable HIPO files:   " << hipo_files.size() << "\n";
         stats << "Files skipped missing MC::Lund: " << n_fail_missing_mclund << "\n\n";
 
-        stats << "Common cut flow\n";
-        stats << "---------------\n";
-        print_stat_line(stats, "Scanned events:", scanned_events, scanned_events, scanned_events);
-        print_stat_line(stats, "Events with exactly 1 trigger electron:", n_common_trigger_pass, scanned_events, scanned_events);
-        print_stat_line(stats, "Events with no other negative tracks:", n_common_no_other_negative_pass, n_common_trigger_pass, scanned_events);
-        print_stat_line(stats, "Events with exactly 1 MC::Lund pi+:", n_common_lund_pip_pass, n_common_no_other_negative_pass, scanned_events);
-
-        stats << "\nStep 1 cut flow after common cuts\n";
-        stats << "---------------------------------\n";
-        print_stat_line(stats, "Events with at least 1 positive track:", n_step1_has_positive, n_common_lund_pip_pass, scanned_events);
-        print_stat_line(stats, ("Events where all positive tracks are " + det + ":"), n_step1_all_positive_detector, n_step1_has_positive, scanned_events);
-        print_stat_line(stats, "Events where all positive tracks are in theta/p bin:", n_step1_all_positive_theta_p, n_step1_all_positive_detector, scanned_events);
-        print_stat_line(stats, "Step 1 pass:", n_step1_pass, n_step1_all_positive_theta_p, scanned_events);
-
-        stats << "\nAdvisor-requested steps\n";
+        stats << "Base selection cut flow\n";
         stats << "-----------------------\n";
-        print_stat_line(stats, "Step 1: choose closest positive track to MC::Lund pi+:", n_step1_pass, n_common_lund_pip_pass, scanned_events);
-        print_stat_line(stats, "Step 2: Step-1 selected track is pi+:", n_step2_pass, n_step1_pass, scanned_events);
-        print_stat_line(stats, "Step 2b: exactly one positive track:", n_step2b_pass, n_step1_pass, scanned_events);
-        print_stat_line(stats, "Step 3: Step-2 pi+ is only positive track:", n_step3_pass, n_step2_pass, scanned_events);
+        print_stat_line(stats, "Scanned events:", scanned_events, scanned_events, scanned_events);
+        print_stat_line(stats, "Exactly 1 REC electron total and it is trigger electron:", n_base_one_trigger_electron, scanned_events, scanned_events);
+        print_stat_line(stats, "No negative hadrons:", n_base_no_negative_hadrons, n_base_one_trigger_electron, scanned_events);
+        print_stat_line(stats, "Exactly 1 MC::Lund pi+:", n_base_mclund_pip, n_base_no_negative_hadrons, scanned_events);
+
+        stats << "\nStep 1 cut flow after base selection\n";
+        stats << "------------------------------------\n";
+        print_stat_line(stats, "Events with at least one requested-detector positive track:", n_step1_has_fd_positive, n_base_mclund_pip, scanned_events);
+        print_stat_line(stats, "Selected requested-detector positive track inside theta/p bin:", n_step1_selected_in_theta_p, n_step1_has_fd_positive, scanned_events);
+        print_stat_line(stats, "Step 1 pass:", n_step1_pass, n_step1_selected_in_theta_p, scanned_events);
+
+        stats << "\nAdvisor-requested outputs\n";
+        stats << "-------------------------\n";
+        print_stat_line(stats, "Step 1: selected detector-positive in theta/p bin:", n_step1_pass, n_base_mclund_pip, scanned_events);
+        print_stat_line(stats, "Step 2.1: Step-1 selected track is pi+:", n_21_pass, n_step1_pass, scanned_events);
+        print_stat_line(stats, "Step 2.2: exactly one positive track after Step 1:", n_22_pass, n_step1_pass, scanned_events);
+        print_stat_line(stats, "Step 3.1: Step-2.1 pion is only positive track:", n_31_pass, n_21_pass, scanned_events);
+        print_stat_line(stats, "Step 3.2: Step-2.2 only positive track is pion:", n_32_pass, n_22_pass, scanned_events);
+
+        stats << "\nConsistency check\n";
+        stats << "-----------------\n";
+        stats << "Step 3.1 pass: " << n_31_pass << "\n";
+        stats << "Step 3.2 pass: " << n_32_pass << "\n";
+        stats << "Difference Step3.1 - Step3.2: " << (n_31_pass - n_32_pass) << "\n";
 
         stats << "\nWritten counts after output cap\n";
         stats << "-------------------------------\n";
-        stats << "Step 1 written:   " << n_step1_written  << "   " << output_step1_hipo  << "   " << output_step1_png  << "\n";
-        stats << "Step 2 written:   " << n_step2_written  << "   " << output_step2_hipo  << "   " << output_step2_png  << "\n";
-        stats << "Step 2b written:  " << n_step2b_written << "   " << output_step2b_hipo << "   " << output_step2b_png << "\n";
-        stats << "Step 3 written:   " << n_step3_written  << "   " << output_step3_hipo  << "   " << output_step3_png  << "\n";
+        stats << "Step 1 written:    " << n_step1_written << "   " << out_step1_hipo << "   " << out_step1_png << "\n";
+        stats << "Step 2.1 written:  " << n_21_written    << "   " << out_21_hipo    << "   " << out_21_png << "\n";
+        stats << "Step 2.2 written:  " << n_22_written    << "   " << out_22_hipo    << "   " << out_22_png << "\n";
+        stats << "Step 3.1 written:  " << n_31_written    << "   " << out_31_hipo    << "   " << out_31_png << "\n";
+        stats << "Step 3.2 written:  " << n_32_written    << "   " << out_32_hipo    << "   " << out_32_png << "\n";
 
         stats << "\nFailure counters\n";
         stats << "----------------\n";
-        stats << "Fail exactly 1 trigger electron:                  " << n_fail_trigger << "\n";
-        stats << "Fail no-other-negative-tracks requirement:         " << n_fail_other_negative << "\n";
+        stats << "Fail base electron requirement:                    " << n_fail_base_electron << "\n";
+        stats << "Fail no-negative-hadrons requirement:              " << n_fail_negative_hadrons << "\n";
         stats << "Fail exactly 1 MC::Lund pi+ check:                 " << n_fail_lund_pip << "\n";
-        stats << "Step 1 fail: no positive tracks:                   " << n_step1_fail_no_positive << "\n";
-        stats << "Step 1 fail: at least one positive not " << det << ":              " << n_step1_fail_positive_not_detector << "\n";
-        stats << "Step 1 fail: all positives " << det << ", but one outside theta/p: " << n_step1_fail_positive_not_in_theta_p_bin << "\n";
-        stats << "Step 2 fail: selected Step-1 track is not pi+:      " << n_step2_fail_selected_track_not_pip << "\n";
-        stats << "Step 3 fail: Step-2 event has extra positives:      " << n_step3_fail_extra_positive_tracks << "\n";
+        stats << "Step 1 fail: no requested-detector positive track: " << n_step1_fail_no_fd_positive << "\n";
+        stats << "Step 1 fail: selected positive outside theta/p:    " << n_step1_fail_selected_not_in_bin << "\n";
+        stats << "Step 2.1 fail: selected Step-1 track is not pi+:   " << n_21_fail_selected_not_pip << "\n";
+        stats << "Step 2.2 fail: not exactly one positive track:     " << n_22_fail_not_exactly_one_positive << "\n";
+        stats << "Step 3.1 fail: Step-2.1 has extra positives:       " << n_31_fail_extra_positive << "\n";
+        stats << "Step 3.2 fail: only positive is not pi+:           " << n_32_fail_only_positive_not_pip << "\n";
 
         stats << "\nHistogram statistics\n";
         stats << "--------------------\n";
-        stats << "Step 1 entries:   " << h_step1->GetEntries()
+        stats << "Step 1 entries:    " << h_step1->GetEntries()
               << "   mean=" << h_step1->GetMean()
               << "   stddev=" << h_step1->GetStdDev() << "\n";
-        stats << "Step 2 entries:   " << h_step2->GetEntries()
-              << "   mean=" << h_step2->GetMean()
-              << "   stddev=" << h_step2->GetStdDev() << "\n";
-        stats << "Step 2b entries:  " << h_step2b->GetEntries()
-              << "   mean=" << h_step2b->GetMean()
-              << "   stddev=" << h_step2b->GetStdDev() << "\n";
-        stats << "Step 3 entries:   " << h_step3->GetEntries()
-              << "   mean=" << h_step3->GetMean()
-              << "   stddev=" << h_step3->GetStdDev() << "\n";
+        stats << "Step 2.1 entries:  " << h_21->GetEntries()
+              << "   mean=" << h_21->GetMean()
+              << "   stddev=" << h_21->GetStdDev() << "\n";
+        stats << "Step 2.2 entries:  " << h_22->GetEntries()
+              << "   mean=" << h_22->GetMean()
+              << "   stddev=" << h_22->GetStdDev() << "\n";
+        stats << "Step 3.1 entries:  " << h_31->GetEntries()
+              << "   mean=" << h_31->GetMean()
+              << "   stddev=" << h_31->GetStdDev() << "\n";
+        stats << "Step 3.2 entries:  " << h_32->GetEntries()
+              << "   mean=" << h_32->GetMean()
+              << "   stddev=" << h_32->GetStdDev() << "\n";
 
         stats.close();
     }
 
     std::cout << "\n============================================================\n";
-    std::cout << "DONE SINGLE-PASS STUDY\n";
-    std::cout << "Scanned events:                       " << scanned_events << "\n";
-    std::cout << "Common: exactly 1 trigger electron:   " << n_common_trigger_pass << "\n";
-    std::cout << "Common: no other negative tracks:     " << n_common_no_other_negative_pass << "\n";
-    std::cout << "Common: exactly 1 MC::Lund pi+:       " << n_common_lund_pip_pass << "\n";
-
-    std::cout << "\nStep 1 cut flow:\n";
-    std::cout << "  At least 1 positive track:          " << n_step1_has_positive << "\n";
-    std::cout << "  All positive tracks are " << det << ":          " << n_step1_all_positive_detector << "\n";
-    std::cout << "  All positives in theta/p bin:       " << n_step1_all_positive_theta_p << "\n";
-
-    std::cout << "\nPass counts before output cap:\n";
-    std::cout << "  Step 1 pass:                        " << n_step1_pass << "\n";
-    std::cout << "  Step 2 pass:                        " << n_step2_pass << "\n";
-    std::cout << "  Step 2b pass:                       " << n_step2b_pass << "\n";
-    std::cout << "  Step 3 pass:                        " << n_step3_pass << "\n";
-
-    std::cout << "\nStep 1 diagnostic counts:\n";
-    std::cout << "  Step 1 fail: no positive tracks:                         "
-              << n_step1_fail_no_positive << "\n";
-    std::cout << "  Step 1 fail: at least one positive not labeled as "
-              << det << ":              "
-              << n_step1_fail_positive_not_detector << "\n";
-    std::cout << "  Step 1 fail: positives all labeled "
-              << det << ", but at least one outside theta/p bin: "
-              << n_step1_fail_positive_not_in_theta_p_bin << "\n";
-
-    std::cout << "\nStep 2 diagnostic counts:\n";
-    std::cout << "  Step 2 fail: Step-1 selected track is not pi+:             "
-              << n_step2_fail_selected_track_not_pip << "\n";
-
-    std::cout << "\nStep 3 diagnostic counts:\n";
-    std::cout << "  Step 3 fail: Step-2 event has extra positive tracks:       "
-              << n_step3_fail_extra_positive_tracks << "\n";
-
-    std::cout << "\nWritten counts:\n";
-    std::cout << "  Step 1 written:                     " << n_step1_written
-              << "  " << output_step1_hipo << "  " << output_step1_png << "\n";
-    std::cout << "  Step 2 written:                     " << n_step2_written
-              << "  " << output_step2_hipo << "  " << output_step2_png << "\n";
-    std::cout << "  Step 2b written:                    " << n_step2b_written
-              << "  " << output_step2b_hipo << "  " << output_step2b_png << "\n";
-    std::cout << "  Step 3 written:                     " << n_step3_written
-              << "  " << output_step3_hipo << "  " << output_step3_png << "\n";
+    std::cout << "DONE UPDATED SINGLE-PASS STUDY\n";
+    std::cout << "Scanned events:                         " << scanned_events << "\n";
+    std::cout << "Base: exactly 1 trigger electron only:  " << n_base_one_trigger_electron << "\n";
+    std::cout << "Base: no negative hadrons:              " << n_base_no_negative_hadrons << "\n";
+    std::cout << "Base: exactly 1 MC::Lund pi+:           " << n_base_mclund_pip << "\n";
+    std::cout << "Step 1 pass:                            " << n_step1_pass << "\n";
+    std::cout << "Step 2.1 pass:                          " << n_21_pass << "\n";
+    std::cout << "Step 2.2 pass:                          " << n_22_pass << "\n";
+    std::cout << "Step 3.1 pass:                          " << n_31_pass << "\n";
+    std::cout << "Step 3.2 pass:                          " << n_32_pass << "\n";
+    std::cout << "Step 3.1 - Step 3.2:                    " << (n_31_pass - n_32_pass) << "\n";
 
     std::cout << "\nFailures:\n";
-    std::cout << "  fail trigger electron count:        " << n_fail_trigger << "\n";
-    std::cout << "  fail other negative tracks:         " << n_fail_other_negative << "\n";
-    std::cout << "  fail MC::Lund pi+ check:            " << n_fail_lund_pip << "\n";
-    std::cout << "  files skipped missing MC::Lund:     " << n_fail_missing_mclund << "\n";
+    std::cout << "  fail base electron requirement:       " << n_fail_base_electron << "\n";
+    std::cout << "  fail no-negative-hadrons requirement: " << n_fail_negative_hadrons << "\n";
+    std::cout << "  fail MC::Lund pi+ check:              " << n_fail_lund_pip << "\n";
 
-    std::cout << "\nStats file written: " << output_stats_txt << "\n";
+    std::cout << "\nOutput files:\n";
+    std::cout << "  " << out_step1_hipo << "   " << out_step1_png << "\n";
+    std::cout << "  " << out_21_hipo    << "   " << out_21_png << "\n";
+    std::cout << "  " << out_22_hipo    << "   " << out_22_png << "\n";
+    std::cout << "  " << out_31_hipo    << "   " << out_31_png << "\n";
+    std::cout << "  " << out_32_hipo    << "   " << out_32_png << "\n";
+    std::cout << "  " << out_stats_txt  << "\n";
 
     delete h_step1;
-    delete h_step2;
-    delete h_step2b;
-    delete h_step3;
+    delete h_21;
+    delete h_22;
+    delete h_31;
+    delete h_32;
 }
