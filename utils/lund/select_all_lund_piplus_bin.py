@@ -145,6 +145,7 @@ def main():
     parser.add_argument("--p-max", type=float, default=1.2)
     parser.add_argument("--theta-min", type=float, default=38.0)
     parser.add_argument("--theta-max", type=float, default=39.0)
+    parser.add_argument("--N_evnts",type=int,default=-1,help="Maximum number of selected events to write. Use -1 to select all events.",)
 
     args = parser.parse_args()
 
@@ -161,8 +162,10 @@ def main():
     if not lund_files:
         raise FileNotFoundError(f"No .lund files found in {input_folder}")
 
+
     n_seen = 0
     n_selected = 0
+    reached_limit = False
 
     with open(args.out, "w") as fout:
         for lund_file in lund_files:
@@ -186,8 +189,17 @@ def main():
                     n_selected += 1
                     file_selected += 1
 
+                    # Stop after writing the requested number of selected events.
+                    # If args.N_evnts <= 0, keep all matching events.
+                    if args.N_evnts > 0 and n_selected >= args.N_evnts:
+                        reached_limit = True
+                        break
+
             print(f"  events checked:  {file_seen}")
             print(f"  events selected: {file_selected}")
+
+            if reached_limit:
+                break
 
     print()
     print("Done.")

@@ -142,8 +142,7 @@ void plot_delta_p_rec_minus_gen(const char* input_hipo,
 
             double p_rec = mag3(px, py, pz);
 
-            //if (pid == 11 && status < 0) {
-            if (pid == -211 ) {
+            if (pid == 11 && status < 0) {
                 has_trigger_e = true;
             }
 

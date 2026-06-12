@@ -1,0 +1,70 @@
+Updated three-step / five-output positive-track study
+Negative-hadron veto enabled
+====================================================
+
+Input .dat file:       aron_hipo.dat
+Output prefix:         CD_theta38_39_p1p0_1p2
+Detector used for Step-1 candidate choice: CD
+Theta bin:             [38, 39) deg
+Momentum bin:          [1, 1.2) GeV
+Delta-p plot range:    [-0.5, 0.5] GeV
+Base selection:        exactly 1 trigger electron, no other electrons, no negative hadrons
+Generated truth:       MC::Lund only
+Max events/output:     -1
+Readable HIPO files:   1
+Files skipped missing MC::Lund: 0
+
+Base selection cut flow
+-----------------------
+Scanned events:                                                                   1000     100.00% of previous     100.00% of scanned
+Exactly 1 REC electron total and it is trigger electron:                           728      72.80% of previous      72.80% of scanned
+No negative hadrons:                                                               724      99.45% of previous      72.40% of scanned
+Exactly 1 MC::Lund pi+:                                                            724     100.00% of previous      72.40% of scanned
+
+Step 1 cut flow after base selection
+------------------------------------
+Events with at least one requested-detector positive track:                        610      84.25% of previous      61.00% of scanned
+Selected requested-detector positive track inside theta/p bin:                     350      57.38% of previous      35.00% of scanned
+Step 1 pass:                                                                       350     100.00% of previous      35.00% of scanned
+
+Advisor-requested outputs
+-------------------------
+Step 1: selected detector-positive in theta/p bin:                                 350      48.34% of previous      35.00% of scanned
+Step 2.1: Step-1 selected track is pi+:                                            199      56.86% of previous      19.90% of scanned
+Step 2.2: exactly one positive track after Step 1:                                 125      35.71% of previous      12.50% of scanned
+Step 3.1: Step-2.1 pion is only positive track:                                     70      35.18% of previous       7.00% of scanned
+Step 3.2: Step-2.2 only positive track is pion:                                     70      56.00% of previous       7.00% of scanned
+
+Consistency check
+-----------------
+Step 3.1 pass: 70
+Step 3.2 pass: 70
+Difference Step3.1 - Step3.2: 0
+
+Written counts after output cap
+-------------------------------
+Step 1 written:    350   CD_theta38_39_p1p0_1p2_step1.hipo   CD_theta38_39_p1p0_1p2_step1_dp.png
+Step 2.1 written:  199   CD_theta38_39_p1p0_1p2_step2p1_selectedTrackIsPip.hipo   CD_theta38_39_p1p0_1p2_step2p1_dp.png
+Step 2.2 written:  125   CD_theta38_39_p1p0_1p2_step2p2_onlyOnePositive.hipo   CD_theta38_39_p1p0_1p2_step2p2_dp.png
+Step 3.1 written:  70   CD_theta38_39_p1p0_1p2_step3p1_selectedPipOnlyPositive.hipo   CD_theta38_39_p1p0_1p2_step3p1_dp.png
+Step 3.2 written:  70   CD_theta38_39_p1p0_1p2_step3p2_onlyPositiveIsPip.hipo   CD_theta38_39_p1p0_1p2_step3p2_dp.png
+
+Failure counters
+----------------
+Fail base electron requirement:                    272
+Fail no-negative-hadrons requirement:              4
+Fail exactly 1 MC::Lund pi+ check:                 0
+Step 1 fail: no requested-detector positive track: 114
+Step 1 fail: selected positive outside theta/p:    260
+Step 2.1 fail: selected Step-1 track is not pi+:   151
+Step 2.2 fail: not exactly one positive track:     225
+Step 3.1 fail: Step-2.1 has extra positives:       129
+Step 3.2 fail: only positive is not pi+:           55
+
+Histogram statistics
+--------------------
+Step 1 entries:    350.00   mean=0.00   stddev=0.03
+Step 2.1 entries:  199.00   mean=-0.00   stddev=0.03
+Step 2.2 entries:  125.00   mean=0.00   stddev=0.03
+Step 3.1 entries:  70.00   mean=0.00   stddev=0.03
+Step 3.2 entries:  70.00   mean=0.00   stddev=0.03

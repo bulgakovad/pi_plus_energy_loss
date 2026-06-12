@@ -42,7 +42,7 @@
 // clas12root -l -b -q 'skim_three_step_positive_track_study_singlepass.cxx+("good_hipo.dat","FD_theta38_39_p1p0_1p2_test","FD",38,39,1.0,1.2,-0.5,0.5,200,1000)'
 //
 // Example full:
-// clas12root -l -b -q 'skim_three_step_positive_track_study_singlepass.cxx+("good_hipo.dat","FD_theta38_39_p1p0_1p2","FD",38,39,1.0,1.2,-0.5,0.5,200,-1)'
+// clas12root -l -b -q 'skim_three_step_positive_track_study_singlepass.cxx+("aron_hipo.dat","FD_theta38_39_p1p0_1p2","FD",38,39,1.0,1.2,-0.5,0.5,200,-1)'
 
 #include <iostream>
 #include <fstream>

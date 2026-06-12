@@ -28,8 +28,8 @@ void split_hipo_by_delta_p(const char* input_hipo,
                            const char* output_low  = "low_loss_dp_peak.hipo",
                            const char* output_high = "high_loss_dp_negative.hipo",
                            double lowMin  = -0.02,
-                           double lowMax  =  0.04,
-                           double highMax = -0.03)
+                           double lowMax  =  0.02,
+                           double highMax = -0.04)
 {
     std::cout << "Input HIPO:       " << input_hipo  << "\n";
     std::cout << "Low-loss output:  " << output_low  << "\n";

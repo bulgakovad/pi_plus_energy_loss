@@ -949,6 +949,57 @@ void deltaP_per_Phi_bin(ROOT::RDF::RNode rdf,
     c.SaveAs((pdf + "]").c_str());
 }
 
+void deltaP_VS_Phi(ROOT::RDF::RNode rdf,
+                   const std::string& output_folder,
+                   const std::string& detector,
+                   const double theta_min = 38.0, const double theta_max = 39.0,
+                   const double p_min = 0.0, const double p_max = 20.0,
+                   const std::string& dp_col  = "delta_p",
+                   const std::string& phi_col = "Phi_piplus_DC",
+                   int nPhi = 144, double phiMin = -180.0, double phiMax = 180.0,
+                   int nDP = 200, double dpMin = -0.5, double dpMax = 0.1,
+                   bool logz = true)
+{
+    rdf = rdf.Filter("detector== \"" + detector + "\"")
+             //.Filter("Vz_cut == true && Vxy_cut == true")
+             .Filter("n_rec_piplus == 1")
+             .Filter("p_piplus_rec > " + std::to_string(p_min) + " && p_piplus_rec < " + std::to_string(p_max))
+             .Filter("Theta_rec > " + std::to_string(theta_min) +
+                     " && Theta_rec < " + std::to_string(theta_max));
+
+    if (detector == "CD") {
+        nPhi = 144;
+        phiMin = -180.0;
+        phiMax = 180.0;
+    }
+    else if (detector == "FD") {
+        nPhi = 144;
+        phiMin = -180.0;
+        phiMax = 180.0;
+    }
+
+    auto h2 = rdf.Histo2D(
+        ROOT::RDF::TH2DModel("h2_phi_dp",
+                             Form("#Deltap vs #phi (%.1f < #theta < %.1f, %s);#phi [deg];#Deltap [GeV]",
+                                  theta_min, theta_max, detector.c_str()),
+                             nPhi, phiMin, phiMax,
+                             nDP, dpMin, dpMax),
+        phi_col, dp_col
+    );
+
+    TCanvas c("c_dP_vs_phi", "delta p vs phi", 900, 700);
+
+    if (logz) c.SetLogz();
+    h2->Draw("COLZ");
+
+    const std::string pdf =
+        output_folder +
+        Form("/deltaP_VS_Phi_Theta_%.1f-%.1f_%s_%s.pdf",
+             theta_min, theta_max, detector.c_str(), phi_col.c_str());
+
+    c.SaveAs(pdf.c_str());
+}
+
 void plot_theta_vs_vz_pion(ROOT::RDF::RNode rdf, const std::string& output_folder, bool logz = true) {
 
     auto df_FD = rdf.Filter("detector == \"FD\"");
@@ -1219,7 +1270,7 @@ void plot_deltaP_SingleRecPion_inside_theta_momentum_bin(ROOT::RDF::RNode rdf, c
         auto h_delta_p = filtered_rdf.Histo1D(
             {"h_delta_p",
             Form("#Delta p for #theta #in [%.1f, %.1f] deg and p #in [%.2f, %.2f] GeV;#Deltap (GeV);Counts", theta_low, theta_high, p_low, p_high),
-            200, -0.3, 0.1},
+            200, -0.5, 0.1},
             "delta_p"
         );
 

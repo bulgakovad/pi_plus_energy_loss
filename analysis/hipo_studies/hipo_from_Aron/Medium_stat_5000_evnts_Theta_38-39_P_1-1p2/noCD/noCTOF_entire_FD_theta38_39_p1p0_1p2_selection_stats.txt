@@ -1,0 +1,70 @@
+Updated three-step / five-output positive-track study
+Negative-hadron veto enabled
+====================================================
+
+Input .dat file:       aron_hipo.dat
+Output prefix:         noCTOF_entire_FD_theta38_39_p1p0_1p2
+Detector used for Step-1 candidate choice: FD
+Theta bin:             [38, 39) deg
+Momentum bin:          [1, 1.2) GeV
+Delta-p plot range:    [-0.5, 0.5] GeV
+Base selection:        exactly 1 trigger electron, no other electrons, no negative hadrons
+Generated truth:       MC::Lund only
+Max events/output:     -1
+Readable HIPO files:   1
+Files skipped missing MC::Lund: 0
+
+Base selection cut flow
+-----------------------
+Scanned events:                                                                   5000     100.00% of previous     100.00% of scanned
+Exactly 1 REC electron total and it is trigger electron:                          3642      72.84% of previous      72.84% of scanned
+No negative hadrons:                                                              3626      99.56% of previous      72.52% of scanned
+Exactly 1 MC::Lund pi+:                                                           3626     100.00% of previous      72.52% of scanned
+
+Step 1 cut flow after base selection
+------------------------------------
+Events with at least one requested-detector positive track:                       3078      84.89% of previous      61.56% of scanned
+Selected requested-detector positive track inside theta/p bin:                    1779      57.80% of previous      35.58% of scanned
+Step 1 pass:                                                                      1779     100.00% of previous      35.58% of scanned
+
+Advisor-requested outputs
+-------------------------
+Step 1: selected detector-positive in theta/p bin:                                1779      49.06% of previous      35.58% of scanned
+Step 2.1: Step-1 selected track is pi+:                                           1707      95.95% of previous      34.14% of scanned
+Step 2.2: exactly one positive track after Step 1:                                 279      15.68% of previous       5.58% of scanned
+Step 3.1: Step-2.1 pion is only positive track:                                    266      15.58% of previous       5.32% of scanned
+Step 3.2: Step-2.2 only positive track is pion:                                    266      95.34% of previous       5.32% of scanned
+
+Consistency check
+-----------------
+Step 3.1 pass: 266
+Step 3.2 pass: 266
+Difference Step3.1 - Step3.2: 0
+
+Written counts after output cap
+-------------------------------
+Step 1 written:    1779   noCTOF_entire_FD_theta38_39_p1p0_1p2_step1.hipo   noCTOF_entire_FD_theta38_39_p1p0_1p2_step1_dp.png
+Step 2.1 written:  1707   noCTOF_entire_FD_theta38_39_p1p0_1p2_step2p1_selectedTrackIsPip.hipo   noCTOF_entire_FD_theta38_39_p1p0_1p2_step2p1_dp.png
+Step 2.2 written:  279   noCTOF_entire_FD_theta38_39_p1p0_1p2_step2p2_onlyOnePositive.hipo   noCTOF_entire_FD_theta38_39_p1p0_1p2_step2p2_dp.png
+Step 3.1 written:  266   noCTOF_entire_FD_theta38_39_p1p0_1p2_step3p1_selectedPipOnlyPositive.hipo   noCTOF_entire_FD_theta38_39_p1p0_1p2_step3p1_dp.png
+Step 3.2 written:  266   noCTOF_entire_FD_theta38_39_p1p0_1p2_step3p2_onlyPositiveIsPip.hipo   noCTOF_entire_FD_theta38_39_p1p0_1p2_step3p2_dp.png
+
+Failure counters
+----------------
+Fail base electron requirement:                    1358
+Fail no-negative-hadrons requirement:              16
+Fail exactly 1 MC::Lund pi+ check:                 0
+Step 1 fail: no requested-detector positive track: 548
+Step 1 fail: selected positive outside theta/p:    1299
+Step 2.1 fail: selected Step-1 track is not pi+:   72
+Step 2.2 fail: not exactly one positive track:     1500
+Step 3.1 fail: Step-2.1 has extra positives:       1441
+Step 3.2 fail: only positive is not pi+:           13
+
+Histogram statistics
+--------------------
+Step 1 entries:    1779.00   mean=-0.01   stddev=0.01
+Step 2.1 entries:  1707.00   mean=-0.01   stddev=0.01
+Step 2.2 entries:  279.00   mean=-0.01   stddev=0.01
+Step 3.1 entries:  266.00   mean=-0.01   stddev=0.01
+Step 3.2 entries:  266.00   mean=-0.01   stddev=0.01

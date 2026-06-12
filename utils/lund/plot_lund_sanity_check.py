@@ -145,28 +145,28 @@ def main():
     parser.add_argument(
         "--p-min",
         type=float,
-        default=1.0,
+        default=0.8,
         help="Lower edge of expected pi+ momentum bin",
     )
 
     parser.add_argument(
         "--p-max",
         type=float,
-        default=1.2,
+        default=1.4,
         help="Upper edge of expected pi+ momentum bin",
     )
 
     parser.add_argument(
         "--theta-min",
         type=float,
-        default=38.0,
+        default=30.0,
         help="Lower edge of expected pi+ theta bin in degrees",
     )
 
     parser.add_argument(
         "--theta-max",
         type=float,
-        default=39.0,
+        default=47.0,
         help="Upper edge of expected pi+ theta bin in degrees",
     )
 

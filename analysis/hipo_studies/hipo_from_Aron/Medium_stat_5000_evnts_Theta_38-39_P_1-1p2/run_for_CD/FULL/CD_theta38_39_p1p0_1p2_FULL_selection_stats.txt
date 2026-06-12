@@ -1,0 +1,70 @@
+Updated three-step / five-output positive-track study
+Negative-hadron veto enabled
+====================================================
+
+Input .dat file:       aron_hipo.dat
+Output prefix:         CD_theta38_39_p1p0_1p2_FULL
+Detector used for Step-1 candidate choice: CD
+Theta bin:             [38, 39) deg
+Momentum bin:          [1, 1.2) GeV
+Delta-p plot range:    [-0.5, 0.5] GeV
+Base selection:        exactly 1 trigger electron, no other electrons, no negative hadrons
+Generated truth:       MC::Lund only
+Max events/output:     -1
+Readable HIPO files:   1
+Files skipped missing MC::Lund: 0
+
+Base selection cut flow
+-----------------------
+Scanned events:                                                                   5000     100.00% of previous     100.00% of scanned
+Exactly 1 REC electron total and it is trigger electron:                          3678      73.56% of previous      73.56% of scanned
+No negative hadrons:                                                              3654      99.35% of previous      73.08% of scanned
+Exactly 1 MC::Lund pi+:                                                           3654     100.00% of previous      73.08% of scanned
+
+Step 1 cut flow after base selection
+------------------------------------
+Events with at least one requested-detector positive track:                       3061      83.77% of previous      61.22% of scanned
+Selected requested-detector positive track inside theta/p bin:                    1782      58.22% of previous      35.64% of scanned
+Step 1 pass:                                                                      1782     100.00% of previous      35.64% of scanned
+
+Advisor-requested outputs
+-------------------------
+Step 1: selected detector-positive in theta/p bin:                                1782      48.77% of previous      35.64% of scanned
+Step 2.1: Step-1 selected track is pi+:                                           1051      58.98% of previous      21.02% of scanned
+Step 2.2: exactly one positive track after Step 1:                                 621      34.85% of previous      12.42% of scanned
+Step 3.1: Step-2.1 pion is only positive track:                                    386      36.73% of previous       7.72% of scanned
+Step 3.2: Step-2.2 only positive track is pion:                                    386      62.16% of previous       7.72% of scanned
+
+Consistency check
+-----------------
+Step 3.1 pass: 386
+Step 3.2 pass: 386
+Difference Step3.1 - Step3.2: 0
+
+Written counts after output cap
+-------------------------------
+Step 1 written:    1782   CD_theta38_39_p1p0_1p2_FULL_step1.hipo   CD_theta38_39_p1p0_1p2_FULL_step1_dp.png
+Step 2.1 written:  1051   CD_theta38_39_p1p0_1p2_FULL_step2p1_selectedTrackIsPip.hipo   CD_theta38_39_p1p0_1p2_FULL_step2p1_dp.png
+Step 2.2 written:  621   CD_theta38_39_p1p0_1p2_FULL_step2p2_onlyOnePositive.hipo   CD_theta38_39_p1p0_1p2_FULL_step2p2_dp.png
+Step 3.1 written:  386   CD_theta38_39_p1p0_1p2_FULL_step3p1_selectedPipOnlyPositive.hipo   CD_theta38_39_p1p0_1p2_FULL_step3p1_dp.png
+Step 3.2 written:  386   CD_theta38_39_p1p0_1p2_FULL_step3p2_onlyPositiveIsPip.hipo   CD_theta38_39_p1p0_1p2_FULL_step3p2_dp.png
+
+Failure counters
+----------------
+Fail base electron requirement:                    1322
+Fail no-negative-hadrons requirement:              24
+Fail exactly 1 MC::Lund pi+ check:                 0
+Step 1 fail: no requested-detector positive track: 593
+Step 1 fail: selected positive outside theta/p:    1279
+Step 2.1 fail: selected Step-1 track is not pi+:   731
+Step 2.2 fail: not exactly one positive track:     1161
+Step 3.1 fail: Step-2.1 has extra positives:       665
+Step 3.2 fail: only positive is not pi+:           235
+
+Histogram statistics
+--------------------
+Step 1 entries:    1782.00   mean=0.00   stddev=0.03
+Step 2.1 entries:  1051.00   mean=0.00   stddev=0.03
+Step 2.2 entries:  621.00   mean=0.00   stddev=0.03
+Step 3.1 entries:  386.00   mean=0.00   stddev=0.03
+Step 3.2 entries:  386.00   mean=0.00   stddev=0.03

@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <map>
 #include <string>
+#include <cmath>
 
 #include "TCanvas.h"
 #include "TH1D.h"
@@ -220,9 +221,11 @@ void plot_RECTrack_detector_pip(const char* input_hipo,
 void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
                                const char* output_png = "",
                                int require_exactly_one_rec_pip = 1,
+                               int detector_filter = -1,
                                int nBins = 100,
                                double xMin = 0.0,
-                               double xMax = 40.0)
+                               double xMax = 40.0,
+                               bool logy = false)
 {
     std::cout << "Input HIPO: " << input_hipo << "\n";
 
@@ -231,10 +234,17 @@ void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
     std::string outname = output_png;
 
     if (outname.empty()) {
-        outname = "plots/RECTrack_chi2NDF_pip_" + base_name_no_ext(input_hipo) + ".png";
+        outname = "plots/RECTrack_chi2NDF_pip_" + base_name_no_ext(input_hipo);
+
+        if (detector_filter > 0) {
+            outname += Form("_det%d", detector_filter);
+        }
+
+        outname += ".png";
     }
     else {
         std::string s = outname;
+
         if (s.find("/") == std::string::npos) {
             outname = "plots/" + s;
         }
@@ -253,9 +263,17 @@ void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
     hipo::bank recParticle(factory.getSchema("REC::Particle"));
     hipo::bank recTrack(factory.getSchema("REC::Track"));
 
+    std::string title = "REC::Track #chi^{2}/NDF for #pi^{+}-associated rows";
+
+    if (detector_filter > 0) {
+        title += Form(", detector = %d", detector_filter);
+    }
+
+    title += ";REC::Track #chi^{2}/NDF;Counts";
+
     TH1D* h_chi2ndf = new TH1D(
-        "h_chi2ndf",
-        "REC::Track #chi^{2}/NDF for #pi^{+}-associated rows;#chi^{2}/NDF;Counts",
+        "h_track_chi2ndf",
+        title.c_str(),
         nBins, xMin, xMax
     );
 
@@ -265,11 +283,12 @@ void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
     int n_events_skipped_no_pip = 0;
     int n_events_skipped_multi_pip = 0;
     int n_events_no_track_for_pip = 0;
-    int n_tracks_bad_ndf = 0;
 
     long long n_track_rows_total = 0;
     long long n_track_rows_for_pip = 0;
+    long long n_track_rows_after_detector_filter = 0;
     long long n_chi2ndf_filled = 0;
+    long long n_tracks_bad_ndf = 0;
 
     while (reader.next()) {
         reader.read(event);
@@ -315,12 +334,17 @@ void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
         for (int j = 0; j < n_tracks; j++) {
             const int pidx = recTrack.getShort("pindex", j);
 
-            // Critical association:
-            // use only REC::Track rows belonging to the pi+ REC::Particle row.
+            // REC::Track row belongs to the reconstructed pi+ iff
+            // REC::Track.pindex equals the REC::Particle row index of the pi+.
             if (pidx != pip_pindex) continue;
 
             found_track_for_this_pip = true;
             n_track_rows_for_pip++;
+
+            const int det = recTrack.getByte("detector", j);
+
+            if (detector_filter > 0 && det != detector_filter) continue;
+            n_track_rows_after_detector_filter++;
 
             const double chi2 = recTrack.getFloat("chi2", j);
             const int ndf = recTrack.getShort("NDF", j);
@@ -330,7 +354,7 @@ void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
                 continue;
             }
 
-            const double chi2_ndf = chi2 / double(ndf);
+            const double chi2_ndf = chi2 / static_cast<double>(ndf);
 
             h_chi2ndf->Fill(chi2_ndf);
             n_chi2ndf_filled++;
@@ -345,23 +369,33 @@ void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
 
     std::cout << "\nCut flow / sanity check:\n"
               << "  Events read:                         " << n_events << "\n"
-              << "  Events with exactly one REC pi+:      " << n_events_with_one_pip << "\n"
-              << "  Events skipped, no REC pi+:           " << n_events_skipped_no_pip << "\n"
-              << "  Events skipped, multiple REC pi+:     " << n_events_skipped_multi_pip << "\n"
-              << "  Events used:                          " << n_events_used << "\n"
-              << "  Total REC::Track rows:                " << n_track_rows_total << "\n"
-              << "  Pion-associated REC::Track rows:      " << n_track_rows_for_pip << "\n"
-              << "  Filled chi2/NDF entries:              " << n_chi2ndf_filled << "\n"
-              << "  Tracks skipped because NDF <= 0:      " << n_tracks_bad_ndf << "\n"
-              << "  Events with no pion REC::Track row:   " << n_events_no_track_for_pip << "\n";
+              << "  Events with exactly one REC pi+:     " << n_events_with_one_pip << "\n"
+              << "  Events skipped, no REC pi+:          " << n_events_skipped_no_pip << "\n"
+              << "  Events skipped, multiple REC pi+:    " << n_events_skipped_multi_pip << "\n"
+              << "  Events used:                         " << n_events_used << "\n"
+              << "  Total REC::Track rows:               " << n_track_rows_total << "\n"
+              << "  Pion-associated REC::Track rows:     " << n_track_rows_for_pip << "\n"
+              << "  Rows after detector filter:          " << n_track_rows_after_detector_filter << "\n"
+              << "  Filled chi2/NDF entries:             " << n_chi2ndf_filled << "\n"
+              << "  Tracks skipped because NDF <= 0:     " << n_tracks_bad_ndf << "\n"
+              << "  Events with no pion REC::Track row:  " << n_events_no_track_for_pip << "\n";
 
     gStyle->SetOptStat(1110);
 
-    TCanvas* c = new TCanvas("c_chi2ndf", "REC::Track chi2/NDF for pion", 900, 700);
+    TCanvas* c = new TCanvas(
+        "c_track_chi2ndf",
+        "REC::Track chi2/NDF for pion",
+        900, 700
+    );
+
     c->SetTopMargin(0.10);
     c->SetRightMargin(0.05);
     c->SetLeftMargin(0.12);
     c->SetBottomMargin(0.12);
+
+    if (logy) {
+        c->SetLogy();
+    }
 
     h_chi2ndf->SetLineWidth(2);
     h_chi2ndf->SetMinimum(0.0);
@@ -371,16 +405,49 @@ void plot_RECTrack_chi2NDF_pip(const char* input_hipo,
     lat.SetNDC();
     lat.SetTextSize(0.030);
 
-    lat.DrawLatex(0.16, 0.82, Form("File: %s", base_name_no_ext(input_hipo).c_str()));
-    lat.DrawLatex(0.16, 0.77, Form("Events used: %d", n_events_used));
-    lat.DrawLatex(0.16, 0.72, Form("#pi^{+}-associated REC::Track rows: %lld", n_track_rows_for_pip));
-    lat.DrawLatex(0.16, 0.67, Form("Mean #chi^{2}/NDF: %.3f", h_chi2ndf->GetMean()));
+    lat.DrawLatex(
+        0.16, 0.82,
+        Form("File: %s", base_name_no_ext(input_hipo).c_str())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.77,
+        Form("Events used: %d", n_events_used)
+    );
+
+    lat.DrawLatex(
+        0.16, 0.72,
+        Form("#pi^{+}-associated REC::Track rows: %lld", n_track_rows_for_pip)
+    );
+
+    lat.DrawLatex(
+        0.16, 0.67,
+        Form("Filled #chi^{2}/NDF entries: %lld", n_chi2ndf_filled)
+    );
+
+    lat.DrawLatex(
+        0.16, 0.62,
+        Form("Mean #chi^{2}/NDF: %.3f", h_chi2ndf->GetMean())
+    );
+
+    if (detector_filter > 0) {
+        lat.DrawLatex(
+            0.16, 0.57,
+            Form("Detector filter: %d", detector_filter)
+        );
+    }
+    else {
+        lat.DrawLatex(0.16, 0.57, "Detector filter: none");
+    }
+
+    lat.DrawLatex(0.58, 0.77, "REC::Track detector IDs:");
+    lat.DrawLatex(0.58, 0.72, "5 = CVT / CD-like");
+    lat.DrawLatex(0.58, 0.67, "6 = DC / FD-like");
 
     c->SaveAs(outname.c_str());
 
     std::cout << "\nSaved: " << outname << "\n";
 }
-
 void plot_RECTraj_detector_pip(const char* input_hipo,
                                const char* output_png = "",
                                int require_exactly_one_rec_pip = 1)
@@ -2365,6 +2432,711 @@ void plot_RECCalorimeter_layer_pip(const char* input_hipo,
         lat.DrawLatex(0.55, 0.68, "4 = EC inner");
         lat.DrawLatex(0.55, 0.63, "7 = EC outer");
     }
+
+    c->SaveAs(outname.c_str());
+
+    std::cout << "\nSaved: " << outname << "\n";
+}
+
+void plot_deltaVz_pip(const char* input_hipo,
+                      const char* output_png = "",
+                      int require_exactly_one_rec_pip = 1,
+                      int require_exactly_one_gen_pip = 1,
+                      int nBins = 160,
+                      double xMin = -20.0,
+                      double xMax = 20.0,
+                      bool logy = false)
+{
+    std::cout << "Input HIPO: " << input_hipo << "\n";
+
+    gSystem->mkdir("plots", true);
+
+    std::string outname = output_png;
+
+    if (outname.empty()) {
+        outname = "plots/deltaVz_pip_" + base_name_no_ext(input_hipo) + ".png";
+    }
+    else {
+        std::string s = outname;
+
+        // If only a filename is supplied, save it inside plots/.
+        // If a path is supplied, preserve that path.
+        if (s.find("/") == std::string::npos) {
+            outname = "plots/" + s;
+        }
+    }
+
+    std::cout << "Output PNG: " << outname << "\n";
+
+    hipo::reader reader;
+    reader.open(input_hipo);
+
+    hipo::dictionary factory;
+    reader.readDictionary(factory);
+
+    hipo::event event;
+
+    hipo::bank recParticle(factory.getSchema("REC::Particle"));
+    hipo::bank mcLund(factory.getSchema("MC::Lund"));
+
+    TH1D* h_delta_vz = new TH1D(
+        "h_delta_vz",
+        "#Delta v_{z} for #pi^{+};"
+        "#Delta v_{z} = v_{z,rec} - v_{z,gen} (cm);"
+        "Counts",
+        nBins, xMin, xMax
+    );
+
+    long long n_events = 0;
+    long long n_events_used = 0;
+
+    long long n_events_skipped_no_rec_pip = 0;
+    long long n_events_skipped_multi_rec_pip = 0;
+
+    long long n_events_skipped_no_gen_pip = 0;
+    long long n_events_skipped_multi_gen_pip = 0;
+
+    long long n_delta_vz_filled = 0;
+
+    while (reader.next()) {
+        reader.read(event);
+
+        event.getStructure(recParticle);
+        event.getStructure(mcLund);
+
+        n_events++;
+
+        // ------------------------------------------------------------
+        // Find reconstructed pi+
+        // ------------------------------------------------------------
+        int n_rec_pip = 0;
+        int rec_pip_index = -1;
+
+        for (int i = 0; i < recParticle.getRows(); i++) {
+            const int pid = recParticle.getInt("pid", i);
+
+            if (pid == 211) {
+                n_rec_pip++;
+                rec_pip_index = i;
+            }
+        }
+
+        if (n_rec_pip == 0) {
+            n_events_skipped_no_rec_pip++;
+            continue;
+        }
+
+        if (require_exactly_one_rec_pip && n_rec_pip != 1) {
+            n_events_skipped_multi_rec_pip++;
+            continue;
+        }
+
+        // ------------------------------------------------------------
+        // Find generated pi+
+        // ------------------------------------------------------------
+        int n_gen_pip = 0;
+        int gen_pip_index = -1;
+
+        for (int i = 0; i < mcLund.getRows(); i++) {
+            const int pid = mcLund.getInt("pid", i);
+
+            if (pid == 211) {
+                n_gen_pip++;
+                gen_pip_index = i;
+            }
+        }
+
+        if (n_gen_pip == 0) {
+            n_events_skipped_no_gen_pip++;
+            continue;
+        }
+
+        if (require_exactly_one_gen_pip && n_gen_pip != 1) {
+            n_events_skipped_multi_gen_pip++;
+            continue;
+        }
+
+        // ------------------------------------------------------------
+        // Calculate delta vz
+        // ------------------------------------------------------------
+        const double vz_rec = recParticle.getFloat("vz", rec_pip_index);
+        const double vz_gen = mcLund.getFloat("vz", gen_pip_index);
+
+        const double delta_vz = vz_rec - vz_gen;
+
+        h_delta_vz->Fill(delta_vz);
+
+        n_delta_vz_filled++;
+        n_events_used++;
+    }
+
+    std::cout << "\nCut flow / sanity check:\n"
+              << "  Events read:                           " << n_events << "\n"
+              << "  Events used:                           " << n_events_used << "\n"
+              << "  Events skipped, no REC pi+:            " << n_events_skipped_no_rec_pip << "\n"
+              << "  Events skipped, multiple REC pi+:      " << n_events_skipped_multi_rec_pip << "\n"
+              << "  Events skipped, no MC::Lund pi+:       " << n_events_skipped_no_gen_pip << "\n"
+              << "  Events skipped, multiple MC::Lund pi+: " << n_events_skipped_multi_gen_pip << "\n"
+              << "  Filled delta-vz entries:               " << n_delta_vz_filled << "\n";
+
+    std::cout << "\nDistribution summary:\n"
+              << "  Mean delta vz:  " << h_delta_vz->GetMean() << " cm\n"
+              << "  RMS delta vz:   " << h_delta_vz->GetRMS() << " cm\n";
+
+    gStyle->SetOptStat(1110);
+
+    TCanvas* c = new TCanvas(
+        "c_delta_vz",
+        "Delta vz for pion",
+        900, 700
+    );
+
+    c->SetTopMargin(0.10);
+    c->SetRightMargin(0.05);
+    c->SetLeftMargin(0.12);
+    c->SetBottomMargin(0.12);
+
+    if (logy) {
+        c->SetLogy();
+    }
+
+    h_delta_vz->SetLineWidth(2);
+    h_delta_vz->SetMinimum(0.0);
+    h_delta_vz->Draw("hist");
+
+    TLine* zero = new TLine(
+        0.0,
+        0.0,
+        0.0,
+        h_delta_vz->GetMaximum() * 1.05
+    );
+
+    zero->SetLineStyle(2);
+    zero->SetLineWidth(2);
+    zero->Draw("same");
+
+    TLatex lat;
+    lat.SetNDC();
+    lat.SetTextSize(0.030);
+
+    lat.DrawLatex(
+        0.16, 0.82,
+        Form("File: %s", base_name_no_ext(input_hipo).c_str())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.77,
+        Form("Events used: %lld", n_events_used)
+    );
+
+    lat.DrawLatex(
+        0.16, 0.72,
+        Form("Mean #Delta v_{z}: %.3f cm", h_delta_vz->GetMean())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.67,
+        Form("RMS #Delta v_{z}: %.3f cm", h_delta_vz->GetRMS())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.62,
+        "#Delta v_{z} = v_{z,rec}(#pi^{+}) - v_{z,gen}(#pi^{+})"
+    );
+
+    c->SaveAs(outname.c_str());
+
+    std::cout << "\nSaved: " << outname << "\n";
+}
+
+void plot_RECTrack_status_pip(const char* input_hipo,
+                              const char* output_png = "",
+                              int require_exactly_one_rec_pip = 1,
+                              int detector_filter = -1,
+                              int nBins = 21,
+                              double xMin = -10.5,
+                              double xMax = 10.5)
+{
+    std::cout << "Input HIPO: " << input_hipo << "\n";
+
+    gSystem->mkdir("plots", true);
+
+    std::string outname = output_png;
+
+    if (outname.empty()) {
+        outname = "plots/RECTrack_status_pip_" + base_name_no_ext(input_hipo);
+
+        if (detector_filter > 0) {
+            outname += Form("_det%d", detector_filter);
+        }
+
+        outname += ".png";
+    }
+    else {
+        std::string s = outname;
+
+        if (s.find("/") == std::string::npos) {
+            outname = "plots/" + s;
+        }
+    }
+
+    std::cout << "Output PNG: " << outname << "\n";
+
+    hipo::reader reader;
+    reader.open(input_hipo);
+
+    hipo::dictionary factory;
+    reader.readDictionary(factory);
+
+    hipo::event event;
+
+    hipo::bank recParticle(factory.getSchema("REC::Particle"));
+    hipo::bank recTrack(factory.getSchema("REC::Track"));
+
+    std::string title = "REC::Track status for #pi^{+}-associated rows";
+
+    if (detector_filter > 0) {
+        title += Form(", detector = %d", detector_filter);
+    }
+
+    title += ";REC::Track.status;Counts";
+
+    TH1D* h_status = new TH1D(
+        "h_track_status",
+        title.c_str(),
+        nBins, xMin, xMax
+    );
+
+    for (int status = int(xMin + 0.5); status <= int(xMax - 0.5); status++) {
+        const int bin = h_status->GetXaxis()->FindBin(status);
+        h_status->GetXaxis()->SetBinLabel(bin, Form("%d", status));
+    }
+
+    h_status->GetXaxis()->LabelsOption("h");
+    h_status->GetXaxis()->SetLabelSize(0.030);
+
+    int n_events = 0;
+    int n_events_with_one_pip = 0;
+    int n_events_used = 0;
+    int n_events_skipped_no_pip = 0;
+    int n_events_skipped_multi_pip = 0;
+    int n_events_no_track_for_pip = 0;
+
+    long long n_track_rows_total = 0;
+    long long n_track_rows_for_pip = 0;
+    long long n_track_rows_after_detector_filter = 0;
+    long long n_status_filled = 0;
+
+    std::map<int, long long> status_counts;
+
+    while (reader.next()) {
+        reader.read(event);
+
+        event.getStructure(recParticle);
+        event.getStructure(recTrack);
+
+        n_events++;
+
+        const int n_rec_particles = recParticle.getRows();
+
+        int n_rec_pip = 0;
+        int pip_pindex = -1;
+
+        for (int i = 0; i < n_rec_particles; i++) {
+            const int pid = recParticle.getInt("pid", i);
+
+            if (pid == 211) {
+                n_rec_pip++;
+                pip_pindex = i;
+            }
+        }
+
+        if (n_rec_pip == 0) {
+            n_events_skipped_no_pip++;
+            continue;
+        }
+
+        if (n_rec_pip == 1) {
+            n_events_with_one_pip++;
+        }
+
+        if (require_exactly_one_rec_pip && n_rec_pip != 1) {
+            n_events_skipped_multi_pip++;
+            continue;
+        }
+
+        bool found_track_for_this_pip = false;
+
+        const int n_tracks = recTrack.getRows();
+        n_track_rows_total += n_tracks;
+
+        for (int j = 0; j < n_tracks; j++) {
+            const int pidx = recTrack.getShort("pindex", j);
+
+            // REC::Track row belongs to the reconstructed pi+ iff
+            // REC::Track.pindex equals the REC::Particle row index of the pi+.
+            if (pidx != pip_pindex) continue;
+
+            found_track_for_this_pip = true;
+            n_track_rows_for_pip++;
+
+            const int det = recTrack.getByte("detector", j);
+
+            if (detector_filter > 0 && det != detector_filter) continue;
+            n_track_rows_after_detector_filter++;
+
+            const int status = recTrack.getShort("status", j);
+
+            h_status->Fill(status);
+            status_counts[status]++;
+            n_status_filled++;
+        }
+
+        if (!found_track_for_this_pip) {
+            n_events_no_track_for_pip++;
+        }
+
+        n_events_used++;
+    }
+
+    std::cout << "\nCut flow / sanity check:\n"
+              << "  Events read:                         " << n_events << "\n"
+              << "  Events with exactly one REC pi+:     " << n_events_with_one_pip << "\n"
+              << "  Events skipped, no REC pi+:          " << n_events_skipped_no_pip << "\n"
+              << "  Events skipped, multiple REC pi+:    " << n_events_skipped_multi_pip << "\n"
+              << "  Events used:                         " << n_events_used << "\n"
+              << "  Total REC::Track rows:               " << n_track_rows_total << "\n"
+              << "  Pion-associated REC::Track rows:     " << n_track_rows_for_pip << "\n"
+              << "  Rows after detector filter:          " << n_track_rows_after_detector_filter << "\n"
+              << "  Filled status entries:               " << n_status_filled << "\n"
+              << "  Events with no pion REC::Track row:  " << n_events_no_track_for_pip << "\n";
+
+    std::cout << "\nREC::Track.status counts for pion-associated rows";
+
+    if (detector_filter > 0) {
+        std::cout << " with detector = " << detector_filter;
+    }
+
+    std::cout << ":\n";
+
+    for (const auto& kv : status_counts) {
+        std::cout << "  status = " << std::setw(4) << kv.first
+                  << "  count = " << std::setw(8) << kv.second
+                  << "\n";
+    }
+
+    gStyle->SetOptStat(1110);
+
+    TCanvas* c = new TCanvas(
+        "c_track_status",
+        "REC::Track status for pion",
+        900, 700
+    );
+
+    c->SetTopMargin(0.10);
+    c->SetRightMargin(0.05);
+    c->SetLeftMargin(0.12);
+    c->SetBottomMargin(0.14);
+
+    h_status->SetLineWidth(2);
+    h_status->SetMinimum(0.0);
+    h_status->Draw("hist");
+
+    TLatex lat;
+    lat.SetNDC();
+    lat.SetTextSize(0.030);
+
+    lat.DrawLatex(
+        0.16, 0.82,
+        Form("File: %s", base_name_no_ext(input_hipo).c_str())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.77,
+        Form("Events used: %d", n_events_used)
+    );
+
+    lat.DrawLatex(
+        0.16, 0.72,
+        Form("#pi^{+}-associated REC::Track rows: %lld", n_track_rows_for_pip)
+    );
+
+    if (detector_filter > 0) {
+        lat.DrawLatex(
+            0.16, 0.67,
+            Form("Detector filter: %d", detector_filter)
+        );
+    }
+    else {
+        lat.DrawLatex(0.16, 0.67, "Detector filter: none");
+    }
+
+    lat.DrawLatex(0.58, 0.77, "REC::Track detector IDs:");
+    lat.DrawLatex(0.58, 0.72, "5 = CVT / CD-like");
+    lat.DrawLatex(0.58, 0.67, "6 = DC / FD-like");
+
+    c->SaveAs(outname.c_str());
+
+    std::cout << "\nSaved: " << outname << "\n";
+}
+
+void plot_deltaTheta_pip(const char* input_hipo,
+                         const char* output_png = "",
+                         int require_exactly_one_rec_pip = 1,
+                         int require_exactly_one_gen_pip = 1,
+                         int nBins = 160,
+                         double xMin = -10.0,
+                         double xMax = 10.0,
+                         bool logy = false)
+{
+    std::cout << "Input HIPO: " << input_hipo << "\n";
+
+    gSystem->mkdir("plots", true);
+
+    std::string outname = output_png;
+
+    if (outname.empty()) {
+        outname = "plots/deltaTheta_pip_" + base_name_no_ext(input_hipo) + ".png";
+    }
+    else {
+        std::string s = outname;
+
+        if (s.find("/") == std::string::npos) {
+            outname = "plots/" + s;
+        }
+    }
+
+    std::cout << "Output PNG: " << outname << "\n";
+
+    hipo::reader reader;
+    reader.open(input_hipo);
+
+    hipo::dictionary factory;
+    reader.readDictionary(factory);
+
+    hipo::event event;
+
+    hipo::bank recParticle(factory.getSchema("REC::Particle"));
+    hipo::bank mcLund(factory.getSchema("MC::Lund"));
+
+    TH1D* h_delta_theta = new TH1D(
+        "h_delta_theta",
+        "#Delta #theta for #pi^{+};"
+        "#Delta #theta = #theta_{rec} - #theta_{gen} (deg);"
+        "Counts",
+        nBins, xMin, xMax
+    );
+
+    long long n_events = 0;
+    long long n_events_used = 0;
+
+    long long n_events_skipped_no_rec_pip = 0;
+    long long n_events_skipped_multi_rec_pip = 0;
+
+    long long n_events_skipped_no_gen_pip = 0;
+    long long n_events_skipped_multi_gen_pip = 0;
+
+    long long n_events_skipped_bad_rec_p = 0;
+    long long n_events_skipped_bad_gen_p = 0;
+
+    long long n_delta_theta_filled = 0;
+
+    while (reader.next()) {
+        reader.read(event);
+
+        event.getStructure(recParticle);
+        event.getStructure(mcLund);
+
+        n_events++;
+
+        // ------------------------------------------------------------
+        // Find reconstructed pi+
+        // ------------------------------------------------------------
+        int n_rec_pip = 0;
+        int rec_pip_index = -1;
+
+        for (int i = 0; i < recParticle.getRows(); i++) {
+            const int pid = recParticle.getInt("pid", i);
+
+            if (pid == 211) {
+                n_rec_pip++;
+                rec_pip_index = i;
+            }
+        }
+
+        if (n_rec_pip == 0) {
+            n_events_skipped_no_rec_pip++;
+            continue;
+        }
+
+        if (require_exactly_one_rec_pip && n_rec_pip != 1) {
+            n_events_skipped_multi_rec_pip++;
+            continue;
+        }
+
+        // ------------------------------------------------------------
+        // Find generated pi+
+        // ------------------------------------------------------------
+        int n_gen_pip = 0;
+        int gen_pip_index = -1;
+
+        for (int i = 0; i < mcLund.getRows(); i++) {
+            const int pid = mcLund.getInt("pid", i);
+
+            if (pid == 211) {
+                n_gen_pip++;
+                gen_pip_index = i;
+            }
+        }
+
+        if (n_gen_pip == 0) {
+            n_events_skipped_no_gen_pip++;
+            continue;
+        }
+
+        if (require_exactly_one_gen_pip && n_gen_pip != 1) {
+            n_events_skipped_multi_gen_pip++;
+            continue;
+        }
+
+        // ------------------------------------------------------------
+        // Reconstructed theta
+        // ------------------------------------------------------------
+        const double px_rec = recParticle.getFloat("px", rec_pip_index);
+        const double py_rec = recParticle.getFloat("py", rec_pip_index);
+        const double pz_rec = recParticle.getFloat("pz", rec_pip_index);
+
+        const double p_rec = std::sqrt(
+            px_rec * px_rec +
+            py_rec * py_rec +
+            pz_rec * pz_rec
+        );
+
+        if (p_rec <= 0.0 || !std::isfinite(p_rec)) {
+            n_events_skipped_bad_rec_p++;
+            continue;
+        }
+
+        double cos_theta_rec = pz_rec / p_rec;
+
+        if (cos_theta_rec > 1.0) cos_theta_rec = 1.0;
+        if (cos_theta_rec < -1.0) cos_theta_rec = -1.0;
+
+        const double theta_rec =
+            std::acos(cos_theta_rec) * 180.0 / M_PI;
+
+        // ------------------------------------------------------------
+        // Generated theta
+        // ------------------------------------------------------------
+        const double px_gen = mcLund.getFloat("px", gen_pip_index);
+        const double py_gen = mcLund.getFloat("py", gen_pip_index);
+        const double pz_gen = mcLund.getFloat("pz", gen_pip_index);
+
+        const double p_gen = std::sqrt(
+            px_gen * px_gen +
+            py_gen * py_gen +
+            pz_gen * pz_gen
+        );
+
+        if (p_gen <= 0.0 || !std::isfinite(p_gen)) {
+            n_events_skipped_bad_gen_p++;
+            continue;
+        }
+
+        double cos_theta_gen = pz_gen / p_gen;
+
+        if (cos_theta_gen > 1.0) cos_theta_gen = 1.0;
+        if (cos_theta_gen < -1.0) cos_theta_gen = -1.0;
+
+        const double theta_gen =
+            std::acos(cos_theta_gen) * 180.0 / M_PI;
+
+        // ------------------------------------------------------------
+        // Delta theta
+        // ------------------------------------------------------------
+        const double delta_theta = theta_rec - theta_gen;
+
+        h_delta_theta->Fill(delta_theta);
+
+        n_delta_theta_filled++;
+        n_events_used++;
+    }
+
+    std::cout << "\nCut flow / sanity check:\n"
+              << "  Events read:                           " << n_events << "\n"
+              << "  Events used:                           " << n_events_used << "\n"
+              << "  Events skipped, no REC pi+:            " << n_events_skipped_no_rec_pip << "\n"
+              << "  Events skipped, multiple REC pi+:      " << n_events_skipped_multi_rec_pip << "\n"
+              << "  Events skipped, no MC::Lund pi+:       " << n_events_skipped_no_gen_pip << "\n"
+              << "  Events skipped, multiple MC::Lund pi+: " << n_events_skipped_multi_gen_pip << "\n"
+              << "  Events skipped, bad REC momentum:      " << n_events_skipped_bad_rec_p << "\n"
+              << "  Events skipped, bad GEN momentum:      " << n_events_skipped_bad_gen_p << "\n"
+              << "  Filled delta-theta entries:            " << n_delta_theta_filled << "\n";
+
+    std::cout << "\nDistribution summary:\n"
+              << "  Mean delta theta:  " << h_delta_theta->GetMean() << " deg\n"
+              << "  RMS delta theta:   " << h_delta_theta->GetRMS() << " deg\n";
+
+    gStyle->SetOptStat(1110);
+
+    TCanvas* c = new TCanvas(
+        "c_delta_theta",
+        "Delta theta for pion",
+        900, 700
+    );
+
+    c->SetTopMargin(0.10);
+    c->SetRightMargin(0.05);
+    c->SetLeftMargin(0.12);
+    c->SetBottomMargin(0.12);
+
+    if (logy) {
+        c->SetLogy();
+    }
+
+    h_delta_theta->SetLineWidth(2);
+    h_delta_theta->SetMinimum(0.0);
+    h_delta_theta->Draw("hist");
+
+    TLine* zero = new TLine(
+        0.0,
+        0.0,
+        0.0,
+        h_delta_theta->GetMaximum() * 1.05
+    );
+
+    zero->SetLineStyle(2);
+    zero->SetLineWidth(2);
+    zero->Draw("same");
+
+    TLatex lat;
+    lat.SetNDC();
+    lat.SetTextSize(0.030);
+
+    lat.DrawLatex(
+        0.16, 0.82,
+        Form("File: %s", base_name_no_ext(input_hipo).c_str())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.77,
+        Form("Events used: %lld", n_events_used)
+    );
+
+    lat.DrawLatex(
+        0.16, 0.72,
+        Form("Mean #Delta #theta: %.4f deg", h_delta_theta->GetMean())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.67,
+        Form("RMS #Delta #theta: %.4f deg", h_delta_theta->GetRMS())
+    );
+
+    lat.DrawLatex(
+        0.16, 0.62,
+        "#Delta #theta = #theta_{rec}(#pi^{+}) - #theta_{gen}(#pi^{+})"
+    );
 
     c->SaveAs(outname.c_str());
 

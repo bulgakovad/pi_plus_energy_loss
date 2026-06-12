@@ -1,0 +1,44 @@
+Five-step bin-quality study
+===========================
+
+Input .dat file: good_hipo.dat
+Detector:        FD
+Theta bin:       [37, 38) deg
+Momentum bin:    [2.4, 2.6) GeV
+
+Global base-selection counters
+------------------------------
+Events scanned:                              99895000
+Exactly 1 REC electron total and trigger:    71752894
+No negative hadrons:                         71140695
+Exactly 1 MC::Lund pi+:                      71140695
+
+Five-step counts for this theta/p bin
+------------------------------------
+Step 1: selected detector-positive track in bin:                   14627
+Step 2.1: selected Step-1 track is pi+:                            12282   83.968 % of Step 1
+Step 2.2: exactly one positive track total:                          880   6.016 % of Step 1
+Step 3.1: Step-2.1 pion is only positive track:                      757   6.163 % of Step 2.1
+Step 3.2: Step-2.2 only positive track is pi+:                       757   86.023 % of Step 2.2
+
+Step-2.1 REC pi+ / positive-track multiplicity per event
+-------------------------------------------------------
+Step-2.1 events:                                                               12282
+Events with 0 REC pi+:                                                             0   0.000 %
+Events with 1 REC pi+:                                                          8895   72.423 %
+  Out of those: 1 REC pi+ and no other positive tracks:                          757   6.163 %
+  Out of those: 1 REC pi+ but extra positive tracks:                            8138   66.260 %
+Events with >1 REC pi+:                                                         3387   27.577 %
+
+Conditional fractions inside exactly-1-REC-pi+ sample
+----------------------------------------------------
+No other positive tracks: 757 / 8895 = 8.510 %
+Extra positive tracks:    8138 / 8895 = 91.490 %
+
+Histogram statistics
+--------------------
+Step 1 entries:   14627.000   mean=-0.079   stddev=0.084
+Step 2.1 entries: 12282.000   mean=-0.077   stddev=0.081
+Step 2.2 entries: 880.000   mean=-0.052   stddev=0.091
+Step 3.1 entries: 757.000   mean=-0.051   stddev=0.084
+Step 3.2 entries: 757.000   mean=-0.051   stddev=0.084
