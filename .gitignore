@@ -16,6 +16,7 @@ figures*/
 *.png
 *.jpg
 *.jpeg
+*.txt
 
 # --- build / compiled ---
 build*/
